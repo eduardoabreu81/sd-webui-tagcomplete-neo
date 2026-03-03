@@ -8,7 +8,7 @@
 
 </div>
 
-# 🏷️ Tag Autocomplete Neo
+# 🏷️ TagComplete Neo
 
 Tag autocompletion for Forge Neo — suggests Danbooru/e621 tags, LoRA/embedding names, wildcards, and chants as you type, with automatic trigger word injection and CivitAI lookup support.
 
