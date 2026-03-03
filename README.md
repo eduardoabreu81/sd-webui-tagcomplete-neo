@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src=".github/banner.png" alt="TagComplete Neo"/>
+
 [![Forge Neo](https://img.shields.io/badge/Forge-Neo-blue)](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)
 [![Gradio](https://img.shields.io/badge/Gradio-4.39.0+-orange)](https://gradio.app/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
