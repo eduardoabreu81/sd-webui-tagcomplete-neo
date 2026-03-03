@@ -10,6 +10,8 @@ import urllib.parse
 from asyncio import sleep
 from pathlib import Path
 
+import requests
+
 import gradio as gr
 import yaml
 from fastapi import FastAPI
@@ -21,11 +23,6 @@ from scripts.model_keyword_support import (get_lora_simple_hash,
                                            load_hash_cache, update_hash_cache,
                                            write_model_keyword_path)
 from scripts.shared_paths import *
-
-try:
-    from modules import sd_hijack
-except (ImportError, ModuleNotFoundError):
-    sd_hijack = None
 
 try:
     try:
@@ -44,27 +41,23 @@ try:
     if int(db.version) != int(tdb.db_ver):
         raise ValueError("Database version mismatch")
 except (ImportError, ValueError, sqlite3.Error) as e:
-    print(f"Tag Autocomplete: Tag frequency database error - \"{e}\"")
+    print(f"[Tag Autocomplete Neo] Tag frequency database error: {e}")
     db = None
 
 def get_embed_db(sd_model=None):
-    """Returns the embedding database, if available."""
+    """Returns the embedding database from the Forge Neo text processing engine."""
     try:
-        return sd_hijack.model_hijack.embedding_db
+        forge_model = sd_model if sd_model is not None else sd_models.model_data.get_sd_model()
+        if forge_model is None:
+            return None
+        engine = getattr(
+            forge_model,
+            "text_processing_engine",
+            getattr(forge_model, "text_processing_engine_l", None),
+        )
+        return getattr(engine, "embeddings", None) if engine is not None else None
     except Exception:
-        try: # sd next with diffusers backend
-            sdnext_model = sd_model if sd_model is not None else shared.sd_model
-            return sdnext_model.embedding_db
-        except Exception:
-            try: # forge webui
-                forge_model = sd_model if sd_model is not None else sd_models.model_data.get_sd_model()
-                if type(forge_model).__name__ == "FakeInitialModel":
-                    return None
-                else:
-                    processer = getattr(forge_model, "text_processing_engine", getattr(forge_model, "text_processing_engine_l"))
-                    return processer.embeddings
-            except Exception:
-                return None
+        return None
 
 # Attempt to get embedding load function, using the same call as api.
 try:
@@ -75,7 +68,7 @@ try:
         load_textual_inversion_embeddings = lambda *args, **kwargs: None
 except Exception as e: # Not supported.
     load_textual_inversion_embeddings = lambda *args, **kwargs: None
-    print("Tag Autocomplete: Cannot reload embeddings instantly:", e)
+    print("[Tag Autocomplete Neo] Cannot reload embeddings instantly:", e)
 
 # Sorting functions for extra networks / embeddings stuff
 sort_criteria = {
@@ -194,10 +187,10 @@ def get_yaml_wildcards():
                     else:
                         parse_dynamic_prompt_format(yaml_wildcards, data, path)
                 else:
-                    print('No data found in ' + path.name)
+                    print('[Tag Autocomplete Neo] No data found in ' + path.name)
         except (yaml.YAMLError, UnicodeDecodeError, AttributeError, TypeError) as e:
             # YAML file not in wildcard format or couldn't be read
-            print(f'Issue in parsing YAML file {path.name}: {e}')
+            print(f'[Tag Autocomplete Neo] Issue in parsing YAML file {path.name}: {e}')
             continue
         except Exception as e:
             # Something else went wrong, just skip
@@ -272,7 +265,7 @@ def get_embeddings(sd_model):
 
         results = sort_models(emb_v1) + sort_models(emb_v2) + sort_models(emb_vXL) + sort_models(emb_unknown)
     except AttributeError:
-        print("tag_autocomplete_helper: Old webui version or unrecognized model shape, using fallback for embedding completion.")
+        print("[Tag Autocomplete Neo] Old webui version or unrecognized model shape, using fallback for embedding completion.")
         # Get a list of all embeddings in the folder
         all_embeds = [str(e.relative_to(EMB_PATH)) for e in EMB_PATH.rglob("*") if e.suffix in {".bin", ".pt", ".png",'.webp', '.jxl', '.avif'} and e.is_file()]
         # Remove files with a size of 0
@@ -282,14 +275,6 @@ def get_embeddings(sd_model):
         results = [e + "," for e in all_embeds]
 
     write_to_temp_file('emb.txt', results)
-
-def get_hypernetworks():
-    """Write a list of all hypernetworks"""
-
-    # Get a list of all hypernetworks in the folder
-    hyp_paths = [Path(h) for h in glob.glob(HYP_PATH.joinpath("**/*").as_posix(), recursive=True)]
-    all_hypernetworks = [(h, h.stem) for h in hyp_paths if h.suffix in {".pt"} and h.is_file()]
-    return sort_models(all_hypernetworks)
 
 model_keyword_installed = write_model_keyword_path()
 
@@ -477,9 +462,7 @@ if EMB_PATH.exists():
 
 def refresh_embeddings(force: bool, *args, **kwargs):
     try:
-        # Fix for SD.Next infinite refresh loop due to gradio not updating after model load on demand.
-        # This will just skip embedding loading if no model is loaded yet (or there really are no embeddings).
-        # Try catch is just for safety incase sd_hijack access fails for some reason.
+        # Skip embedding loading if no model is loaded yet or there are no embeddings.
         embed_db = get_embed_db()
         if embed_db is None:
             return
@@ -527,11 +510,6 @@ def write_temp_files(skip_wildcard_refresh = False):
         # Write yaml extension wildcards to umi_tags.txt and wc_yaml.json if found
         get_yaml_wildcards()
 
-    if HYP_PATH is not None and HYP_PATH.exists():
-        hypernets = get_hypernetworks()
-        if hypernets:
-            write_to_temp_file('hyp.txt', hypernets)
-
     if model_keyword_installed:
         load_hash_cache()
 
@@ -541,13 +519,8 @@ def write_temp_files(skip_wildcard_refresh = False):
         if lora:
             write_to_temp_file('lora.txt', lora)
 
-    lyco_exists = LYCO_PATH is not None and LYCO_PATH.exists()
-    if lyco_exists and not (lora_exists and LYCO_PATH.samefile(LORA_PATH)):
-        lyco = get_lyco()
-        if lyco:
-            write_to_temp_file('lyco.txt', lyco)
-    elif lyco_exists and lora_exists and LYCO_PATH.samefile(LORA_PATH):
-        print("tag_autocomplete_helper: LyCORIS path is the same as LORA path, skipping")
+    # In Forge Neo, LYCO_PATH == LORA_PATH — LoRA and LyCORIS share one directory.
+    # lora.txt already covers both; lyco.txt is not written separately.
 
     if model_keyword_installed:
         update_hash_cache()
@@ -560,18 +533,6 @@ write_temp_files()
 # Register autocomplete options
 def on_ui_settings():
     TAC_SECTION = ("tac", "Tag Autocomplete")
-
-    # Backwards compatibility for pre 1.3.0 webui versions
-    if not (hasattr(shared.OptionInfo, "info") and callable(getattr(shared.OptionInfo, "info"))):
-        def info(self, info):
-            self.label += f" ({info})"
-            return self
-        shared.OptionInfo.info = info
-    if not (hasattr(shared.OptionInfo, "needs_restart") and callable(getattr(shared.OptionInfo, "needs_restart"))):
-        def needs_restart(self):
-            self.label += " (Requires restart)"
-            return self
-        shared.OptionInfo.needs_restart = needs_restart
 
     # Dictionary of function options and their explanations
     frequency_sort_functions = {
@@ -604,7 +565,6 @@ def on_ui_settings():
         "tac_useEmbeddings": shared.OptionInfo(True, "Search for embeddings"),
         "tac_forceRefreshEmbeddings": shared.OptionInfo(False, "Force refresh embeddings when pressing the extra networks refresh button").info("Turn this on if you have issues with new embeddings not registering correctly in TAC. Warning: Seems to cause reloading issues in gradio for some users."),
         "tac_includeEmbeddingsInNormalResults": shared.OptionInfo(False, "Include embeddings in normal tag results").info("The 'JumpTo...' keybinds (End & Home key by default) will select the first non-embedding result of their direction on the first press for quick navigation in longer lists."),
-        "tac_useHypernetworks": shared.OptionInfo(True, "Search for hypernetworks"),
         "tac_useLoras": shared.OptionInfo(True, "Search for Loras"),
         "tac_useLycos": shared.OptionInfo(True, "Search for LyCORIS/LoHa"),
         "tac_useLoraPrefixForLycos": shared.OptionInfo(True, "Use the '<lora:' prefix instead of '<lyco:' for models in the LyCORIS folder").info("The lyco prefix is included for backwards compatibility and not used anymore by default. Disable this if you are on an old webui version without built-in lyco support."),
@@ -626,8 +586,10 @@ def on_ui_settings():
         "tac_appendComma": shared.OptionInfo(True, "Append comma on tag autocompletion"),
         "tac_appendSpace": shared.OptionInfo(True, "Append space on tag autocompletion").info("will append after comma if the above is enabled"),
         "tac_alwaysSpaceAtEnd": shared.OptionInfo(True, "Always append space if inserting at the end of the textbox").info("takes precedence over the regular space setting for that position"),
-        "tac_modelKeywordCompletion": shared.OptionInfo("Never", "Try to add known trigger words for LORA/LyCO models", gr.Dropdown, lambda: {"choices": ["Never","Only user list","Always"]}).info("Will use & prefer the native activation keywords settable in the extra networks UI. Other functionality requires the <a href=\"https://github.com/mix1009/model-keyword\" target=\"_blank\">model-keyword</a> extension to be installed, but will work with it disabled.").needs_restart(),
-        "tac_modelKeywordLocation": shared.OptionInfo("Start of prompt", "Where to insert the trigger keyword", gr.Dropdown, lambda: {"choices": ["Start of prompt","End of prompt","Before LORA/LyCO"]}).info("Only relevant if the above option is enabled"),
+        "tac_modelKeywordCompletion": shared.OptionInfo("Never", "Try to add known trigger words for LORA/LyCO models", gr.Dropdown, lambda: {"choices": ["Never","Only user list","Always"]}).info("Uses the native 'activation text' field from the .json sidecar first. Enable 'Fetch from CivitAI' below to auto-populate from the API.").needs_restart(),
+        "tac_modelKeywordLocation": shared.OptionInfo("Start of prompt", "Where to insert the trigger keyword", gr.Dropdown, lambda: {"choices": ["Start of prompt","End of prompt","Before LORA/LyCO","After LORA/LyCO"]}).info("Only relevant if the above option is enabled"),
+        "tac_modelKeywordCivitai": shared.OptionInfo(False, "Fetch trigger words from CivitAI if not found in local .json").info("Calls GET /api/v1/model-versions/by-hash/{sha256} — result cached in .json sidecar, re-fetched only when the file changes"),
+        "tac_civitaiApiKey": shared.OptionInfo("", "CivitAI API key for trigger word lookups").info("Required for early-access models. Leave blank for public models. Get your key at civitai.com/user/account"),
         "tac_wildcardCompletionMode": shared.OptionInfo("To next folder level", "How to complete nested wildcard paths", gr.Dropdown, lambda: {"choices": ["To next folder level","To first difference","Always fully"]}).info("e.g. \"hair/colours/light/...\""),
         # Alias settings
         "tac_alias.searchByAlias": shared.OptionInfo(True, "Search by alias"),
@@ -791,6 +753,91 @@ def api_tac(_: gr.Blocks, app: FastAPI):
     async def get_lyco_info(lyco_name):
         return await get_json_info(LYCO_PATH, lyco_name)
 
+    @app.get("/tacapi/v1/civitai-trigger-words/{lora_name}")
+    async def get_civitai_trigger_words(lora_name: str):
+        """Look up trigger words for a LoRA from CivitAI by-hash API.
+
+        Priority:
+          1. Return cached result from .json sidecar if sha256 matches.
+          2. Call CivitAI GET /api/v1/model-versions/by-hash/{sha256}.
+          3. Save trainedWords to .json sidecar for future cache hits.
+        """
+        if LORA_PATH is None or not LORA_PATH.exists():
+            return Response(status_code=404)
+
+        # Locate the LoRA file
+        path_glob = glob.glob(
+            LORA_PATH.as_posix() + f"/**/{glob.escape(lora_name)}.*", recursive=True
+        )
+        paths = [
+            p for p in path_glob
+            if Path(p).suffix in {".safetensors", ".ckpt", ".pt"} and Path(p).is_file()
+        ]
+        if not paths:
+            return Response(status_code=404)
+
+        lora_path = Path(paths[0])
+        json_path = lora_path.with_suffix(".json")
+
+        # Compute SHA256 (uses Forge's cache, fast on repeat calls)
+        sha256 = hashes.sha256_from_cache(
+            str(lora_path), f"lora/{lora_name}", lora_path.suffix == ".safetensors"
+        )
+        if not sha256:
+            return Response(status_code=404)
+
+        sha256_upper = sha256.upper()
+
+        # Check sidecar cache
+        sidecar: dict = {}
+        if json_path.is_file():
+            try:
+                sidecar = json.loads(json_path.read_text(encoding="utf-8"))
+            except Exception:
+                sidecar = {}
+
+        if (
+            sidecar.get("civitai_sha256", "").upper() == sha256_upper
+            and "civitai_trained_words" in sidecar
+        ):
+            return JSONResponse({"trainedWords": sidecar["civitai_trained_words"]})
+
+        # Fetch from CivitAI
+        api_key = getattr(shared.opts, "tac_civitaiApiKey", "").strip()
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        try:
+            response = requests.get(
+                f"https://civitai.com/api/v1/model-versions/by-hash/{sha256_upper}",
+                headers=headers,
+                timeout=(10, 20),
+            )
+            if response.status_code != 200:
+                return Response(status_code=response.status_code)
+            data = response.json()
+            if "error" in data:
+                return Response(status_code=404)
+
+            trained_words = data.get("trainedWords", [])
+            trained_str = ", ".join(trained_words) if trained_words else ""
+
+            # Persist to sidecar
+            sidecar["civitai_sha256"] = sha256_upper
+            sidecar["civitai_trained_words"] = trained_str
+            try:
+                json_path.write_text(
+                    json.dumps(sidecar, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+            except Exception as e:
+                print(f"[Tag Autocomplete Neo] Could not save civitai trigger words to sidecar: {e}")
+
+            return JSONResponse({"trainedWords": trained_str})
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] CivitAI trigger word lookup failed: {e}")
+            return Response(status_code=500)
+
     @app.get("/tacapi/v1/lora-cached-hash/{lora_name}")
     async def get_lora_cached_hash(lora_name: str):
         path_glob = glob.glob(LORA_PATH.as_posix() + f"/**/{glob.escape(lora_name)}.*", recursive=True)
@@ -808,8 +855,6 @@ def api_tac(_: gr.Blocks, app: FastAPI):
             return LORA_PATH
         elif type == "lyco":
             return LYCO_PATH
-        elif type == "hypernetwork":
-            return HYP_PATH
         elif type == "embedding":
             return EMB_PATH
         else:

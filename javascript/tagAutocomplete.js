@@ -223,7 +223,6 @@ async function syncOptions() {
         sortWildcardResults: opts["tac_sortWildcardResults"],
         useEmbeddings: opts["tac_useEmbeddings"],
         includeEmbeddingsInNormalResults: opts["tac_includeEmbeddingsInNormalResults"],
-        useHypernetworks: opts["tac_useHypernetworks"],
         useLoras: opts["tac_useLoras"],
         useLycos: opts["tac_useLycos"],
         useLoraPrefixForLycos: opts["tac_useLoraPrefixForLycos"],
@@ -247,6 +246,7 @@ async function syncOptions() {
         wildcardCompletionMode: opts["tac_wildcardCompletionMode"],
         modelKeywordCompletion: opts["tac_modelKeywordCompletion"],
         modelKeywordLocation: opts["tac_modelKeywordLocation"],
+        civitaiKeywordLookup: opts["tac_modelKeywordCivitai"],
         wcWrap: opts["dp_parser_wildcard_wrap"] || "__", // to support custom wrapper chars set by dp_parser
         // Alias settings
         alias: {
@@ -531,7 +531,7 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
     let afterInsertCursorPos = editStart + match.index + sanitizedText.length;
 
     var optionalSeparator = "";
-    let extraNetworkTypes = [ResultType.hypernetwork, ResultType.lora];
+    let extraNetworkTypes = [ResultType.lora];
     let noCommaTypes = [ResultType.wildcardFile, ResultType.yamlWildcard, ResultType.umiWildcard].concat(extraNetworkTypes);
     if (!noCommaTypes.includes(tagType)) {
         // Append comma if enabled and not already present
@@ -564,11 +564,19 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
 
     if (TAC_CFG.modelKeywordCompletion !== "Never" && (tagType === ResultType.lora || tagType === ResultType.lyco)) {
         let keywords = null;
-        // Check built-in activation words first
+        // Check built-in activation words first (.json sidecar "activation text" field)
         if (tagType === ResultType.lora || tagType === ResultType.lyco) {
             let info = await fetchTacAPI(`tacapi/v1/lora-info/${result.text}`)
             if (info && info["activation text"]) {
                 keywords = info["activation text"];
+            }
+        }
+
+        // CivitAI API fallback: fetch trigger words by SHA256 (cached in sidecar)
+        if (!keywords && TAC_CFG.civitaiKeywordLookup) {
+            let civitaiData = await fetchTacAPI(`tacapi/v1/civitai-trigger-words/${result.text}`);
+            if (civitaiData && civitaiData.trainedWords && civitaiData.trainedWords.length > 0) {
+                keywords = civitaiData.trainedWords;
             }
         }
 
@@ -605,7 +613,11 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
                 newPrompt = `${keywords}, ${newPrompt}`; // Insert keywords
             else if (TAC_CFG.modelKeywordLocation === "End of prompt")
                 newPrompt = `${newPrompt}, ${keywords}`; // Insert keywords
-            else {
+            else if (TAC_CFG.modelKeywordLocation === "After LORA/LyCO") {
+                // Insert keywords immediately after the <lora:…> token
+                newPrompt = prompt.substring(0, editStart) + sanitizedText + `, ${keywords}` + optionalSeparator + prompt.substring(editEnd);
+            } else {
+                // "Before LORA/LyCO" (default)
                 let keywordStart = prompt[editStart - 1] === " " ? editStart - 1 : editStart;
                 newPrompt = prompt.substring(0, keywordStart) + `, ${keywords} ${insert}` + prompt.substring(editEnd);
             }
@@ -909,7 +921,6 @@ function addResultsToList(textArea, results, tagword, resetList) {
             TAC_CFG.showExtraNetworkPreviews &&
             [
                 ResultType.embedding,
-                ResultType.hypernetwork,
                 ResultType.lora,
                 ResultType.lyco,
             ].includes(result.type)
@@ -972,7 +983,7 @@ async function updateSelectionStyle(textArea, newIndex, oldIndex, scroll = true)
         let selectedResult = results[newIndex];
         let selectedType = selectedResult.type;
         // These types support previews (others could technically too, but are not native to the webui gallery)
-        let previewTypes = [ResultType.embedding, ResultType.hypernetwork, ResultType.lora, ResultType.lyco];
+        let previewTypes = [ResultType.embedding, ResultType.lora, ResultType.lyco];
 
         let previewDiv = gradioApp().querySelector(`.autocompleteParent${textAreaId} .sideInfo`);
 
@@ -1463,7 +1474,6 @@ async function refreshTacTempFiles(api = false) {
         wildcardExtFiles = [];
         umiWildcards = [];
         embeddings = [];
-        hypernetworks = [];
         loras = [];
         lycos = [];
         modelKeywordDict.clear();
@@ -1555,7 +1565,8 @@ async function setup() {
     addOnDemandObservers(addAutocompleteToArea);
 
     // Add event listener to apply settings button so we can mirror the changes to our internal config
-    let applySettingsButton = gradioApp().querySelector("#tab_settings #settings_submit") || gradioApp().querySelector("#tab_settings > div > .gr-button-primary");
+    // Gradio 4 (Forge Neo) layout uses "#settings > .save"
+    let applySettingsButton = gradioApp().querySelector("#settings > .save");
     applySettingsButton?.addEventListener("click", () => {
         // Wait 500ms to make sure the settings have been applied to the webui opts object
         setTimeout(async () => { 

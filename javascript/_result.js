@@ -9,11 +9,10 @@ const ResultType = Object.freeze({
     "wildcardFile": 5,
     "yamlWildcard": 6,
     "umiWildcard": 7,
-    "hypernetwork": 8,
-    "lora": 9,
-    "lyco": 10,
-    "chant": 11,
-    "styleName": 12
+    "lora": 8,
+    "lyco": 9,
+    "chant": 10,
+    "styleName": 11
 });
 
 // Class to hold result data and annotations to make it clearer to use
