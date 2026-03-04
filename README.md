@@ -32,7 +32,7 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
-### v0.1.0 — Forge Neo Baseline *(in development)*
+### v0.1.0 — Forge Neo Baseline
 
 - **Full Forge Neo compatibility** — extension loads and runs correctly on Forge Neo without crashes or silent failures
 - **Booru tags restored** — tag suggestions now appear correctly in the prompt box
@@ -46,14 +46,22 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 📖 Changelog
 
-> *No releases yet. First release will be v0.1.0.*
+### v0.1.0 — Forge Neo Baseline
+- Full Forge Neo / Gradio 4 compatibility
+- Booru tags, initialization, and embedding reload fixed
+- CivitAI trigger word lookup with SHA256 cache
+- "After LoRA/LyCO" insertion option
 
 ---
 
 ## 🗺️ Roadmap
 
-### v0.1.0 — Forge Neo Baseline *(in development)*
+### v0.1.0 — Forge Neo Baseline ✅
 - Forge Neo / Gradio 4 compatibility ✅
+- Booru tag display fixed (Gradio 4 selectors) ✅
+- Reliable re-initialization after WebUI reconnect ✅
+- Embedding reload hardened ✅
+- Extension resilience after Forge updates ✅
 - CivitAI trigger word lookup with SHA256 cache ✅
 - "After LoRA/LyCO" insertion option ✅
 
