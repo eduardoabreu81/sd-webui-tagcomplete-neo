@@ -3,17 +3,18 @@
 // Supported third party options so far:
 // - Dataset Tag Editor
 
-// Core text area selectors
+// Core text area selectors.
+// Use descendant selectors (no '>') so they work with Gradio 4.39+ which inserts
+// intermediate wrapper divs between the component root and the <label>/<textarea>.
 const core = [
-    "#txt2img_prompt > label > textarea",
-    "#img2img_prompt > label > textarea",
-    "#txt2img_neg_prompt > label > textarea",
-    "#img2img_neg_prompt > label > textarea",
-    ".prompt > label > textarea",
-    "#txt2img_edit_style_prompt > label > textarea",
-    "#txt2img_edit_style_neg_prompt > label > textarea",
-    "#img2img_edit_style_prompt > label > textarea",
-    "#img2img_edit_style_neg_prompt > label > textarea"
+    "#txt2img_prompt textarea",
+    "#img2img_prompt textarea",
+    "#txt2img_neg_prompt textarea",
+    "#img2img_neg_prompt textarea",
+    "#txt2img_edit_style_prompt textarea",
+    "#txt2img_edit_style_neg_prompt textarea",
+    "#img2img_edit_style_prompt textarea",
+    "#img2img_edit_style_neg_prompt textarea"
 ];
 
 // Third party text area selectors
@@ -172,10 +173,11 @@ function addOnDemandObservers(setupFunction) {
 const thirdPartyIdSet = new Set();
 // Get the identifier for the text area to differentiate between positive and negative
 function getTextAreaIdentifier(textArea) {
-    let txt2img_p = gradioApp().querySelector('#txt2img_prompt > label > textarea');
-    let txt2img_n = gradioApp().querySelector('#txt2img_neg_prompt > label > textarea');
-    let img2img_p = gradioApp().querySelector('#img2img_prompt > label > textarea');
-    let img2img_n = gradioApp().querySelector('#img2img_neg_prompt > label > textarea');
+    // Use descendant selectors to match Gradio 4.39+ DOM structure.
+    let txt2img_p = gradioApp().querySelector('#txt2img_prompt textarea');
+    let txt2img_n = gradioApp().querySelector('#txt2img_neg_prompt textarea');
+    let img2img_p = gradioApp().querySelector('#img2img_prompt textarea');
+    let img2img_n = gradioApp().querySelector('#img2img_neg_prompt textarea');
 
     let modifier = "";
     switch (textArea) {

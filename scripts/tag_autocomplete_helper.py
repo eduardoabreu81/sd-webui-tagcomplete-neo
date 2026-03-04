@@ -462,17 +462,17 @@ if EMB_PATH.exists():
 
 def refresh_embeddings(force: bool, *args, **kwargs):
     try:
-        # Skip embedding loading if no model is loaded yet or there are no embeddings.
         embed_db = get_embed_db()
         if embed_db is None:
             return
-        loaded = embed_db.word_embeddings
-        skipped = embed_db.skipped_embeddings
-        if len((loaded | skipped)) > 0:
-            load_textual_inversion_embeddings(force_reload=force)
-            get_embeddings(None)
-    except Exception:
-        pass
+        # Call directly through embed_db to avoid the stale global binding that is
+        # set to a no-op lambda when no model is loaded at import time.
+        # Also removed the "any embeddings loaded?" guard so newly-added embeddings
+        # are discovered even when the folder was previously empty (#297).
+        embed_db.load_textual_inversion_embeddings(force_reload=force)
+        get_embeddings(None)
+    except Exception as e:
+        print(f"[Tag Autocomplete Neo] Error refreshing embeddings: {e}")
 
 def refresh_temp_files(*args, **kwargs):
     global WILDCARD_EXT_PATHS

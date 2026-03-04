@@ -1666,13 +1666,24 @@ var tacLoading = false;
 onUiUpdate(async () => {
     if (tacLoading) return;
     if (Object.keys(opts).length === 0) return;
+    // If TAC was already initialized but the DOM was cleared (e.g. after a Forge Neo server
+    // restart where the browser reconnects without a full page reload), reset state so we
+    // can re-initialize cleanly. Fixes: no init on 2nd WebUI launch (#328).
+    if (TAC_CFG && !gradioApp().querySelector('.autocompleteParent')) {
+        TAC_CFG = null;
+        allTags = [];
+        embeddings = [];
+        loras = [];
+        lycos = [];
+    }
     if (TAC_CFG) return;
     tacLoading = true;
-    // Get our tag base path from the temp file
-    tagBasePath = await readFile(`tmp/tagAutocompletePath.txt`);
+    // Get our tag base path from the temp file.
+    // .trim() guards against any trailing whitespace/newline (#302 hardening).
+    tagBasePath = (await readFile(`tmp/tagAutocompletePath.txt`))?.trim();
     // Load config from webui opts
     await syncOptions();
-    // Rest of setup
-    setup();
+    // Await setup() so tacLoading stays true until fully done (#328).
+    await setup();
     tacLoading = false;
 });

@@ -57,8 +57,8 @@ WILDCARD_EXT_PATHS = find_ext_wildcard_paths()
 STATIC_TEMP_PATH = FILE_DIR.joinpath("tmp").absolute()
 TEMP_PATH = TAGS_PATH.joinpath("temp").absolute()
 
-# Make sure these folders exist
-if not TEMP_PATH.exists():
-    TEMP_PATH.mkdir()
-if not STATIC_TEMP_PATH.exists():
-    STATIC_TEMP_PATH.mkdir()
+# Make sure these folders exist.
+# Use parents=True + exist_ok=True so the extension keeps working after a Forge
+# update or reinstall that might briefly remove the tags/temp subdirectory (#302).
+TEMP_PATH.mkdir(parents=True, exist_ok=True)
+STATIC_TEMP_PATH.mkdir(parents=True, exist_ok=True)
