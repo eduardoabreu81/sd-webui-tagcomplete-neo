@@ -1,5 +1,11 @@
 tags/temp/
 __pycache__/
 tags/tag_frequency.db
-.specstory/
+
+# ============================================
+# Documentação privada de contexto para IA
+# ============================================
 .github/copilot-instructions.md
+AGENTS.local.md
+docs/PROJECT_LOG.md
+.specstory/
