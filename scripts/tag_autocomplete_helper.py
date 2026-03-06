@@ -521,7 +521,8 @@ def refresh_embeddings(force: bool, *args, **kwargs):
         # set to a no-op lambda when no model is loaded at import time.
         # Also removed the "any embeddings loaded?" guard so newly-added embeddings
         # are discovered even when the folder was previously empty (#297).
-        embed_db.load_textual_inversion_embeddings(force_reload=force)
+        # Note: Forge Neo removed the force_reload kwarg from this method.
+        embed_db.load_textual_inversion_embeddings()
         get_embeddings(None)
     except Exception as e:
         print(f"[Tag Autocomplete Neo] Error refreshing embeddings: {e}")
