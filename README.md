@@ -32,6 +32,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.1.1 — LoRA alias fix
+
+- **LoRA/LyCORIS token no longer blinks** — the inserted `<lora:…>` token now uses the same identifier that Forge Neo expects (respects your "When adding to prompt, refer to LoRA by" setting: *Alias from file* or *Filename*) ⭐
+
 ### v0.1.0 — Forge Neo Baseline
 
 - **Full Forge Neo compatibility** — extension loads and runs correctly on Forge Neo without crashes or silent failures
@@ -46,6 +50,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 📖 Changelog
 
+### v0.1.1 — LoRA alias fix
+- LoRA/LyCORIS completion now inserts the alias Forge Neo expects, eliminating token blink
+- Respects the "Alias from file" / "Filename" setting in Extra Networks
+
 ### v0.1.0 — Forge Neo Baseline
 - Full Forge Neo / Gradio 4 compatibility
 - Booru tags, initialization, and embedding reload fixed
@@ -55,6 +63,9 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 🗺️ Roadmap
+
+### v0.1.1 — LoRA alias fix ✅
+- LoRA/LyCORIS token matches Forge Neo's expected alias ✅
 
 ### v0.1.0 — Forge Neo Baseline ✅
 - Forge Neo / Gradio 4 compatibility ✅
@@ -101,6 +112,7 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - **LoRA and LyCORIS autocomplete** triggered by `<`
 - **Embedding autocomplete** triggered by `<e:`
 - **Thumbnail preview** in the completion popup
+- **Correct alias insertion** — uses the same identifier Forge Neo expects (`ss_output_name` or filename, respecting your Extra Networks setting) so tokens never blink ⭐
 - **Trigger word injection** on LoRA selection — inserts activation keywords automatically
   - Fetches from CivitAI if not set locally ⭐
   - Cached by SHA256 — only re-fetched when the model file changes ⭐
