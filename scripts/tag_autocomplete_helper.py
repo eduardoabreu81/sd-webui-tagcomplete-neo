@@ -279,47 +279,66 @@ def get_embeddings(sd_model):
 model_keyword_installed = write_model_keyword_path()
 
 
+def _read_safetensors_alias(path: Path):
+    """Read ss_output_name from a safetensors header without loading tensors.
+
+    Returns the value as a string, or None if not present or on any error.
+    Only reads the compact metadata header (first ~8 KB in practice), so it is fast.
+    """
+    try:
+        import struct
+        import json as _json
+        with open(path, "rb") as f:
+            raw = f.read(8)
+            if len(raw) < 8:
+                return None
+            length = struct.unpack("<Q", raw)[0]
+            header = _json.loads(f.read(length))
+            value = header.get("__metadata__", {}).get("ss_output_name", None)
+            return value if value else None
+    except Exception:
+        return None
+
+
 def _get_lora():
     """
     Write a list of all lora.
     Fallback method for when the built-in Lora.networks module is not available.
+    Returns a list of (path, alias) tuples where alias is None (will be resolved later).
     """
-    # Get a list of all lora in the folder
     lora_paths = [
         Path(l)
         for l in glob.glob(LORA_PATH.joinpath("**/*").as_posix(), recursive=True)
     ]
-    # Get hashes
     valid_loras = [
         lf
         for lf in lora_paths
         if lf.suffix in {".safetensors", ".ckpt", ".pt"} and lf.is_file()
     ]
-
-    return valid_loras
+    return [(lf, None) for lf in valid_loras]
 
 
 def _get_lyco():
     """
     Write a list of all LyCORIS/LOHA from https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris
     Fallback method for when the built-in Lora.networks module is not available.
+    Returns a list of (path, alias) tuples where alias is None (will be resolved later).
     """
-    # Get a list of all LyCORIS in the folder
     lyco_paths = [
         Path(ly)
         for ly in glob.glob(LYCO_PATH.joinpath("**/*").as_posix(), recursive=True)
     ]
-
-    # Get hashes
     valid_lycos = [
         lyf
         for lyf in lyco_paths
         if lyf.suffix in {".safetensors", ".ckpt", ".pt"} and lyf.is_file()
     ]
-    return valid_lycos
+    return [(lyf, None) for lyf in valid_lycos]
 
 
 # Attempt to use the build-in Lora.networks Lora/LyCORIS models lists.
+# When available, model.get_alias() already respects the user's
+# "lora_preferred_name" setting ("Alias from file" vs "Filename").
 try:
     import sys
     from modules import extensions
@@ -328,14 +347,14 @@ try:
 
     def _get_lora():
         return [
-            Path(model.filename).absolute()
+            (Path(model.filename).absolute(), model.get_alias())
             for model in lora.available_loras.values()
             if Path(model.filename).absolute().is_relative_to(LORA_PATH)
         ]
 
     def _get_lyco():
         return [
-            Path(model.filename).absolute()
+            (Path(model.filename).absolute(), model.get_alias())
             for model in lora.available_loras.values()
             if Path(model.filename).absolute().is_relative_to(LYCO_PATH)
         ]
@@ -355,39 +374,72 @@ def is_visible(p: Path) -> bool:
     return True
 
 def get_lora():
-    """Write a list of all lora"""
-    # Get hashes
+    """Write a list of all lora.
+
+    Output format (CSV rows): "rel/path/name.ext","sort_key",hash,"alias"
+    The alias column is what the frontend inserts into <lora:ALIAS:weight>.
+    It mirrors the behaviour of Forge Neo's get_alias(): prefers ss_output_name
+    unless the user has chosen "Filename" in the Extra Networks settings.
+    """
     valid_loras = _get_lora()
-    loras_with_hash = []
-    for l in valid_loras:
+    sort_method = getattr(shared.opts, "tac_modelSortOrder", "Name")
+    sorter = sort_criteria.get(sort_method, sort_criteria["Name"])
+
+    results = []
+    for l, provided_alias in valid_loras:
         if not l.exists() or not l.is_file() or not is_visible(l):
             continue
         name = l.relative_to(LORA_PATH).as_posix()
-        if model_keyword_installed:
-            hash = get_lora_simple_hash(l)
+        hash_val = get_lora_simple_hash(l) if model_keyword_installed else ""
+
+        # Determine the alias to use for prompt insertion.
+        # Priority:
+        #   1. Value from lora.available_loras.get_alias() — already respects
+        #      the "lora_preferred_name" setting ("Alias from file" / "Filename").
+        #   2. ss_output_name from the safetensors header (fallback when the
+        #      built-in lora module is not importable).
+        #   3. Filename stem (last-resort fallback).
+        if provided_alias is not None:
+            alias = provided_alias
+        elif l.suffix == ".safetensors":
+            alias = _read_safetensors_alias(l) or l.stem
         else:
-            hash = ""
-        loras_with_hash.append((l, name, hash))
-    # Sort
-    return sort_models(loras_with_hash)
+            alias = l.stem
+
+        sort_key = sorter(l, name, True)
+        results.append(f'"{name}","{sort_key}",{hash_val},"{alias}"')
+
+    return results
 
 
 def get_lyco():
-    """Write a list of all LyCORIS/LOHA from https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris"""
-    # Get hashes
+    """Write a list of all LyCORIS/LOHA.
+
+    Output format (CSV rows): "rel/path/name.ext","sort_key",hash,"alias"
+    Same alias logic as get_lora().
+    """
     valid_lycos = _get_lyco()
-    lycos_with_hash = []
-    for ly in valid_lycos:
+    sort_method = getattr(shared.opts, "tac_modelSortOrder", "Name")
+    sorter = sort_criteria.get(sort_method, sort_criteria["Name"])
+
+    results = []
+    for ly, provided_alias in valid_lycos:
         if not ly.exists() or not ly.is_file() or not is_visible(ly):
             continue
         name = ly.relative_to(LYCO_PATH).as_posix()
-        if model_keyword_installed:
-            hash = get_lora_simple_hash(ly)
+        hash_val = get_lora_simple_hash(ly) if model_keyword_installed else ""
+
+        if provided_alias is not None:
+            alias = provided_alias
+        elif ly.suffix == ".safetensors":
+            alias = _read_safetensors_alias(ly) or ly.stem
         else:
-            hash = ""
-        lycos_with_hash.append((ly, name, hash))
-    # Sort
-    return sort_models(lycos_with_hash)
+            alias = ly.stem
+
+        sort_key = sorter(ly, name, True)
+        results.append(f'"{name}","{sort_key}",{hash_val},"{alias}"')
+
+    return results
 
 def get_style_names():
     try:
