@@ -300,12 +300,46 @@ def _read_safetensors_alias(path: Path):
         return None
 
 
+# Try to import the built-in Lora module for alias resolution.
+# When available, model.get_alias() respects the user's "lora_preferred_name"
+# setting ("Alias from file" = ss_output_name, "Filename" = filename stem).
+# We keep a reference to the module rather than overriding _get_lora/_get_lyco
+# so that filesystem scanning always runs — lora.available_loras is empty until
+# a model is first loaded (Forge Neo loads on demand), which would cause lora.txt
+# to be written as empty on startup.
+_lora_module = None
+try:
+    import sys
+    from modules import extensions
+    sys.path.append(Path(extensions.extensions_builtin_dir).joinpath("Lora").as_posix())
+    import lora as _lora_module  # pyright: ignore [reportMissingImports]
+except Exception:
+    pass
+
+
+def _build_alias_map(base_path: Path) -> dict:
+    """Build an {absolute_path: alias} map from lora.available_loras.
+    Returns an empty dict when the module is unavailable or no model has been
+    loaded yet (available_loras is still empty at startup)."""
+    if _lora_module is None:
+        return {}
+    try:
+        return {
+            Path(model.filename).absolute(): model.get_alias()
+            for model in _lora_module.available_loras.values()
+            if Path(model.filename).absolute().is_relative_to(base_path)
+        }
+    except Exception:
+        return {}
+
+
 def _get_lora():
-    """
-    Write a list of all lora.
-    Fallback method for when the built-in Lora.networks module is not available.
-    Returns a list of (path, alias) tuples where alias is None (will be resolved later).
-    """
+    """Returns a list of (path, alias_or_None) tuples for all LoRA files.
+    Always uses a filesystem scan so files appear even before a model is loaded.
+    When lora.available_loras is populated the alias already respects the user's
+    'lora_preferred_name' setting; otherwise None is returned and get_lora()
+    resolves via safetensors header or filename stem."""
+    alias_map = _build_alias_map(LORA_PATH)
     lora_paths = [
         Path(l)
         for l in glob.glob(LORA_PATH.joinpath("**/*").as_posix(), recursive=True)
@@ -315,15 +349,13 @@ def _get_lora():
         for lf in lora_paths
         if lf.suffix in {".safetensors", ".ckpt", ".pt"} and lf.is_file()
     ]
-    return [(lf, None) for lf in valid_loras]
+    return [(lf, alias_map.get(lf.absolute())) for lf in valid_loras]
 
 
 def _get_lyco():
-    """
-    Write a list of all LyCORIS/LOHA from https://github.com/KohakuBlueleaf/a1111-sd-webui-lycoris
-    Fallback method for when the built-in Lora.networks module is not available.
-    Returns a list of (path, alias) tuples where alias is None (will be resolved later).
-    """
+    """Returns a list of (path, alias_or_None) tuples for all LyCORIS files.
+    Same strategy as _get_lora()."""
+    alias_map = _build_alias_map(LYCO_PATH)
     lyco_paths = [
         Path(ly)
         for ly in glob.glob(LYCO_PATH.joinpath("**/*").as_posix(), recursive=True)
@@ -333,36 +365,7 @@ def _get_lyco():
         for lyf in lyco_paths
         if lyf.suffix in {".safetensors", ".ckpt", ".pt"} and lyf.is_file()
     ]
-    return [(lyf, None) for lyf in valid_lycos]
-
-
-# Attempt to use the build-in Lora.networks Lora/LyCORIS models lists.
-# When available, model.get_alias() already respects the user's
-# "lora_preferred_name" setting ("Alias from file" vs "Filename").
-try:
-    import sys
-    from modules import extensions
-    sys.path.append(Path(extensions.extensions_builtin_dir).joinpath("Lora").as_posix())
-    import lora  # pyright: ignore [reportMissingImports]
-
-    def _get_lora():
-        return [
-            (Path(model.filename).absolute(), model.get_alias())
-            for model in lora.available_loras.values()
-            if Path(model.filename).absolute().is_relative_to(LORA_PATH)
-        ]
-
-    def _get_lyco():
-        return [
-            (Path(model.filename).absolute(), model.get_alias())
-            for model in lora.available_loras.values()
-            if Path(model.filename).absolute().is_relative_to(LYCO_PATH)
-        ]
-
-except Exception as e:
-    pass
-    # no need to report
-    # print(f'Exception setting-up performant fetchers: {e}')
+    return [(lyf, alias_map.get(lyf.absolute())) for lyf in valid_lycos]
 
 
 def is_visible(p: Path) -> bool:
