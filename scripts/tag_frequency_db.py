@@ -13,6 +13,7 @@ def transaction(db=db_file):
     """Context manager for database transactions.
     Ensures that the connection is properly closed after the transaction.
     """
+    conn = None  # guard against NameError in finally if connect() itself raises (#288)
     try:
         conn = sqlite3.connect(db, timeout=timeout)
         

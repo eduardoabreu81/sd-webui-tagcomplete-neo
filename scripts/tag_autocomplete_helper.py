@@ -252,16 +252,28 @@ def get_embeddings(sd_model):
                 if emb.filename is None:
                     continue
 
+                # Resolve symlinks and make the path absolute before calling
+                # relative_to() — guards against #291 (relative/symlinked paths
+                # that don't appear to be under EMB_PATH until resolved).
+                emb_resolved = Path(emb.filename).resolve()
+                emb_base = EMB_PATH.resolve()
+                try:
+                    rel = emb_resolved.relative_to(emb_base).as_posix()
+                except ValueError:
+                    # Path is genuinely outside EMB_PATH (e.g. symlink to
+                    # another drive). Use just the filename as the display key.
+                    rel = emb_resolved.name
+
                 if emb.shape is None:
-                    emb_unknown.append((Path(emb.filename), Path(emb.filename).relative_to(EMB_PATH).as_posix(), ""))
+                    emb_unknown.append((emb_resolved, rel, ""))
                 elif emb.shape == V1_SHAPE:
-                    emb_v1.append((Path(emb.filename), Path(emb.filename).relative_to(EMB_PATH).as_posix(), "v1"))
+                    emb_v1.append((emb_resolved, rel, "v1"))
                 elif emb.shape == V2_SHAPE:
-                    emb_v2.append((Path(emb.filename), Path(emb.filename).relative_to(EMB_PATH).as_posix(), "v2"))
+                    emb_v2.append((emb_resolved, rel, "v2"))
                 elif emb.shape == VXL_SHAPE:
-                    emb_vXL.append((Path(emb.filename), Path(emb.filename).relative_to(EMB_PATH).as_posix(), "vXL"))
+                    emb_vXL.append((emb_resolved, rel, "vXL"))
                 else:
-                    emb_unknown.append((Path(emb.filename), Path(emb.filename).relative_to(EMB_PATH).as_posix(), ""))
+                    emb_unknown.append((emb_resolved, rel, ""))
 
         results = sort_models(emb_v1) + sort_models(emb_v2) + sort_models(emb_vXL) + sort_models(emb_unknown)
     except AttributeError:
