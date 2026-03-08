@@ -5,8 +5,12 @@ class LoraParser extends BaseTagParser {
     parse() {
         // Show lora
         let tempResults = [];
-        if (tagword !== "<" && tagword !== "<l:" && tagword !== "<lora:") {
-            let searchTerm = tagword.replace("<lora:", "").replace("<l:", "").replace("<", "");
+        // Extract search term only from the part after the colon separator.
+        // Typing "<lora" or "<l" (no colon yet) should show all results, not
+        // filter for filenames containing "lora".
+        const colonIdx = tagword.indexOf(":");
+        const searchTerm = colonIdx >= 0 ? tagword.slice(colonIdx + 1) : "";
+        if (searchTerm.length > 0) {
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');
                 return regex.test(x.toLowerCase()) || regex.test(x.toLowerCase().replaceAll(" ", "_"));

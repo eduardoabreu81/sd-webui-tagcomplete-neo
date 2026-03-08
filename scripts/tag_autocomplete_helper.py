@@ -579,19 +579,28 @@ def write_temp_files(skip_wildcard_refresh = False):
         get_yaml_wildcards()
 
     if model_keyword_installed:
-        load_hash_cache()
+        try:
+            load_hash_cache()
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] Warning: could not load hash cache: {e}")
 
     lora_exists = LORA_PATH is not None and LORA_PATH.exists()
     if lora_exists:
-        lora = get_lora()
-        if lora:
-            write_to_temp_file('lora.txt', lora)
+        try:
+            lora = get_lora()
+            if lora:
+                write_to_temp_file('lora.txt', lora)
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] Warning: could not write lora.txt: {e}")
 
     # In Forge Neo, LYCO_PATH == LORA_PATH — LoRA and LyCORIS share one directory.
     # lora.txt already covers both; lyco.txt is not written separately.
 
     if model_keyword_installed:
-        update_hash_cache()
+        try:
+            update_hash_cache()
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] Warning: could not update hash cache: {e}")
 
     if shared.prompt_styles is not None:
         write_style_names()

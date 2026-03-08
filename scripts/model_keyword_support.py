@@ -23,6 +23,9 @@ def load_hash_cache():
             file.readlines(), delimiter=",", quotechar='"', skipinitialspace=True
         )
         for line in reader:
+            if len(line) != 3:
+                # Skip malformed lines (e.g. empty lines, truncated entries)
+                continue
             name, hash, mtime = line
             hash_dict[name] = (hash, mtime)
 
