@@ -32,6 +32,13 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.1.2 — Bug fix batch
+
+- **Embedding manual refresh no longer crashes** — the `force_reload` kwarg was removed from Forge Neo; the refresh button now works cleanly
+- **LoRAs always visible on startup** — the previous alias update inadvertently caused LoRAs to disappear until a model was loaded; filesystem scan is now always used as the primary source
+- **Symlinked embeddings supported** — paths are fully resolved before comparison, so embeddings linked from outside the `models/embeddings/` folder no longer crash the callback
+- **Frequency database stability** — fixed a potential `NameError` on first run when the SQLite connection itself could not be established
+
 ### v0.1.1 — LoRA alias fix
 
 - **LoRA/LyCORIS token no longer blinks** — the inserted `<lora:…>` token now uses the same identifier that Forge Neo expects (respects your "When adding to prompt, refer to LoRA by" setting: *Alias from file* or *Filename*) ⭐
@@ -50,6 +57,12 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 📖 Changelog
 
+### v0.1.2 — Bug fix batch
+- Embedding manual refresh (`tac_forceRefreshEmbeddings`) no longer throws `TypeError` on Forge Neo
+- LoRA list always populated from filesystem scan; `lora.available_loras` used only for alias enrichment
+- `get_embeddings()` resolves symlinks before `relative_to()` — no more crash with linked embedding folders
+- `transaction()` in frequency DB initialises `conn = None` before `try` block — prevents `NameError` on failed DB creation
+
 ### v0.1.1 — LoRA alias fix
 - LoRA/LyCORIS completion now inserts the alias Forge Neo expects, eliminating token blink
 - Respects the "Alias from file" / "Filename" setting in Extra Networks
@@ -63,6 +76,12 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 🗺️ Roadmap
+
+### v0.1.2 — Bug fix batch ✅
+- Embedding manual refresh fixed (Forge Neo removed `force_reload` kwarg) ✅
+- LoRA list always populated at startup ✅
+- Symlinked embeddings no longer crash on model load ✅
+- Frequency database `NameError` on first run fixed ✅
 
 ### v0.1.1 — LoRA alias fix ✅
 - LoRA/LyCORIS token matches Forge Neo's expected alias ✅
@@ -79,7 +98,6 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ### v0.2.0 — Tag Data Update *(planned)*
 - Updated Danbooru and e621 tag lists with current data
 - Better tag coverage for Pony, NoobAI, and Illustrious-based models
-- Fix for frequency database failing to create on first run
 
 ### v0.3.0 — UX Improvements *(planned)*
 - Sort suggestions by relevance to tags already in the prompt
