@@ -5,8 +5,20 @@ class LoraParser extends BaseTagParser {
     parse() {
         // Show lora
         let tempResults = [];
-        if (tagword !== "<" && tagword !== "<l:" && tagword !== "<lora:") {
-            let searchTerm = tagword.replace("<lora:", "").replace("<l:", "").replace("<", "");
+
+        // Determine the actual search term.
+        // Only extract a search term once the user has typed past the colon
+        // (e.g. "<lora:NAME" or "<l:NAME"). If the user is still typing the
+        // prefix ("<", "<l", "<lora") treat it as an empty search and show all.
+        let searchTerm = "";
+        if (tagword.startsWith("<lora:")) {
+            searchTerm = tagword.slice("<lora:".length);
+        } else if (tagword.startsWith("<l:")) {
+            searchTerm = tagword.slice("<l:".length);
+        }
+        // else: "<", "<l", "<lora" or any other incomplete prefix → searchTerm = "" → show all
+
+        if (searchTerm.length > 0) {
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');
                 return regex.test(x.toLowerCase()) || regex.test(x.toLowerCase().replaceAll(" ", "_"));

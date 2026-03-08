@@ -5,8 +5,19 @@ class LycoParser extends BaseTagParser {
     parse() {
         // Show lyco
         let tempResults = [];
-        if (tagword !== "<" && tagword !== "<l:" && tagword !== "<lyco:" && tagword !== "<lora:") {
-            let searchTerm = tagword.replace("<lyco:", "").replace("<lora:", "").replace("<l:", "").replace("<", "");
+
+        // Same prefix logic as ext_loras.js: only search after the colon separator.
+        let searchTerm = "";
+        if (tagword.startsWith("<lyco:")) {
+            searchTerm = tagword.slice("<lyco:".length);
+        } else if (tagword.startsWith("<lora:")) {
+            searchTerm = tagword.slice("<lora:".length);
+        } else if (tagword.startsWith("<l:")) {
+            searchTerm = tagword.slice("<l:".length);
+        }
+        // "<", "<l", "<lyco", "<lora" (no colon) → searchTerm = "" → show all
+
+        if (searchTerm.length > 0) {
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');
                 return regex.test(x.toLowerCase()) || regex.test(x.toLowerCase().replaceAll(" ", "_"));
