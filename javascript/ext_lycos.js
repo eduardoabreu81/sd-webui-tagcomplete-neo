@@ -5,19 +5,8 @@ class LycoParser extends BaseTagParser {
     parse() {
         // Show lyco
         let tempResults = [];
-
-        // Same prefix logic as ext_loras.js: only search after the colon separator.
-        let searchTerm = "";
-        if (tagword.startsWith("<lyco:")) {
-            searchTerm = tagword.slice("<lyco:".length);
-        } else if (tagword.startsWith("<lora:")) {
-            searchTerm = tagword.slice("<lora:".length);
-        } else if (tagword.startsWith("<l:")) {
-            searchTerm = tagword.slice("<l:".length);
-        }
-        // "<", "<l", "<lyco", "<lora" (no colon) → searchTerm = "" → show all
-
-        if (searchTerm.length > 0) {
+        if (tagword !== "<" && tagword !== "<l:" && tagword !== "<lyco:" && tagword !== "<lora:") {
+            let searchTerm = tagword.replace("<lyco:", "").replace("<lora:", "").replace("<l:", "").replace("<", "");
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');
                 return regex.test(x.toLowerCase()) || regex.test(x.toLowerCase().replaceAll(" ", "_"));
@@ -39,7 +28,6 @@ class LycoParser extends BaseTagParser {
             result.meta = "Lyco";
             result.sortKey = t[1];
             result.hash = t[2];
-            result.aliases = (t[3] && t[3].trim()) ? [t[3].trim()] : null;
             finalResults.push(result);
         });
 
@@ -52,7 +40,7 @@ async function load() {
         try {
             lycos = (await loadCSV(`${tagBasePath}/temp/lyco.txt`))
                 .filter(x => x[0]?.trim().length > 0) // Remove empty lines
-                .map(x => [x[0]?.trim(), x[1], x[2], x[3]?.trim()]); // name, sortKey, hash, alias
+                .map(x => [x[0]?.trim(), x[1], x[2]]); // Trim filenames and return the name, sortKey, hash pairs
         } catch (e) {
             console.error("Error loading lyco.txt: " + e);
         }
@@ -62,22 +50,13 @@ async function load() {
 async function sanitize(tagType, text) {
     if (tagType === ResultType.lyco) {
         let multiplier = TAC_CFG.extraNetworksDefaultMultiplier;
-
-        const lycoEntry = lycos.find(x => {
-            const t = x[0] ? x[0].trim() : "";
-            const lastDot = t.lastIndexOf(".") > -1 ? t.lastIndexOf(".") : t.length;
-            const lastSlash = t.lastIndexOf("/") > -1 ? t.lastIndexOf("/") : -1;
-            return t.substring(lastSlash + 1, lastDot) === text;
-        });
-        const insertName = (lycoEntry && lycoEntry[3]) ? lycoEntry[3] : text;
-
-        let info = await fetchTacAPI(`tacapi/v1/lyco-info/${text}`);
+        let info = await fetchTacAPI(`tacapi/v1/lyco-info/${text}`)
         if (info && info["preferred weight"]) {
             multiplier = info["preferred weight"];
         }
 
         let prefix = TAC_CFG.useLoraPrefixForLycos ? "lora" : "lyco";
-        return `<${prefix}:${insertName}:${multiplier}>`;
+        return `<${prefix}:${text}:${multiplier}>`;
     }
     return null;
 }
