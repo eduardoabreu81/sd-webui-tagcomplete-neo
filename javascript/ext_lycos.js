@@ -38,12 +38,26 @@ class LycoParser extends BaseTagParser {
     }
 }
 
+// Maps stem (display name) -> alias from Forge Neo safetensors metadata.
+const lycoAliasMap = {};
+
 async function load() {
     if (lycos.length === 0) {
         try {
-            lycos = (await loadCSV(`${tagBasePath}/temp/lyco.txt`))
-                .filter(x => x[0]?.trim().length > 0) // Remove empty lines
-                .map(x => [x[0]?.trim(), x[1], x[2]]); // Trim filenames and return the name, sortKey, hash pairs
+            const rows = (await loadCSV(`${tagBasePath}/temp/lyco.txt`))
+                .filter(x => x[0]?.trim().length > 0); // Remove empty lines
+            lycos = rows.map(x => [x[0]?.trim(), x[1], x[2]]);
+            // Build stem -> alias lookup from column 4
+            for (const x of rows) {
+                const path = x[0]?.trim();
+                const alias = x[3]?.trim();
+                if (path && alias) {
+                    const lastDot = path.lastIndexOf(".") > -1 ? path.lastIndexOf(".") : path.length;
+                    const lastSlash = path.lastIndexOf("/") > -1 ? path.lastIndexOf("/") : -1;
+                    const stem = path.substring(lastSlash + 1, lastDot);
+                    lycoAliasMap[stem] = alias;
+                }
+            }
         } catch (e) {
             console.error("Error loading lyco.txt: " + e);
         }
@@ -57,9 +71,10 @@ async function sanitize(tagType, text) {
         if (info && info["preferred weight"]) {
             multiplier = info["preferred weight"];
         }
-
+        // Use Forge Neo alias if available; fallback to stem (display name)
+        const insertName = lycoAliasMap[text] ?? text;
         let prefix = TAC_CFG.useLoraPrefixForLycos ? "lora" : "lyco";
-        return `<${prefix}:${text}:${multiplier}>`;
+        return `<${prefix}:${insertName}:${multiplier}>`;
     }
     return null;
 }

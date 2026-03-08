@@ -39,12 +39,27 @@ class LoraParser extends BaseTagParser {
     }
 }
 
+// Maps stem (display name) -> alias from Forge Neo safetensors metadata.
+// Alias is what Forge Neo actually uses to reference a LoRA at runtime.
+const loraAliasMap = {};
+
 async function load() {
     if (loras.length === 0) {
         try {
-            loras = (await loadCSV(`${tagBasePath}/temp/lora.txt`))
-                .filter(x => x[0]?.trim().length > 0) // Remove empty lines
-                .map(x => [x[0]?.trim(), x[1], x[2]]); // Trim filenames and return the name, sortKey, hash pairs
+            const rows = (await loadCSV(`${tagBasePath}/temp/lora.txt`))
+                .filter(x => x[0]?.trim().length > 0); // Remove empty lines
+            loras = rows.map(x => [x[0]?.trim(), x[1], x[2]]);
+            // Build stem -> alias lookup from column 4
+            for (const x of rows) {
+                const path = x[0]?.trim();
+                const alias = x[3]?.trim();
+                if (path && alias) {
+                    const lastDot = path.lastIndexOf(".") > -1 ? path.lastIndexOf(".") : path.length;
+                    const lastSlash = path.lastIndexOf("/") > -1 ? path.lastIndexOf("/") : -1;
+                    const stem = path.substring(lastSlash + 1, lastDot);
+                    loraAliasMap[stem] = alias;
+                }
+            }
         } catch (e) {
             console.error("Error loading lora.txt: " + e);
         }
@@ -58,8 +73,9 @@ async function sanitize(tagType, text) {
         if (info && info["preferred weight"]) {
             multiplier = info["preferred weight"];
         }
-
-        return `<lora:${text}:${multiplier}>`;
+        // Use Forge Neo alias if available; fallback to stem (display name)
+        const insertName = loraAliasMap[text] ?? text;
+        return `<lora:${insertName}:${multiplier}>`;
     }
     return null;
 }
