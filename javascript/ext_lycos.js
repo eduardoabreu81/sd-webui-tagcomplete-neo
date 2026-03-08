@@ -5,10 +5,20 @@ class LycoParser extends BaseTagParser {
     parse() {
         // Show lyco
         let tempResults = [];
-        // Extract search term only from the part after the colon separator.
-        // Typing "<lyco" or "<l" (no colon yet) should show all results.
-        const colonIdx = tagword.indexOf(":");
-        const searchTerm = colonIdx >= 0 ? tagword.slice(colonIdx + 1) : "";
+        // Determine search term:
+        // - "<lyco:X" or "<lora:X" or "<l:X" -> search term is X
+        // - "<" / "<l" / "<ly" / "<lyc" / "<lyco" -> user still typing the prefix, show all
+        // - "<X" (other) -> direct search for X
+        let searchTerm;
+        if (tagword.startsWith("<lyco:") || tagword.startsWith("<lora:")) {
+            searchTerm = tagword.slice(tagword.indexOf(":") + 1);
+        } else if (tagword.startsWith("<l:")) {
+            searchTerm = tagword.slice("<l:".length);
+        } else {
+            const raw = tagword.slice(1); // strip leading "<"
+            // If raw is a prefix of "lyco" the user is still typing the keyword -> show all
+            searchTerm = "lyco".startsWith(raw) ? "" : raw;
+        }
         if (searchTerm.length > 0) {
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');

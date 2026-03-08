@@ -5,11 +5,20 @@ class LoraParser extends BaseTagParser {
     parse() {
         // Show lora
         let tempResults = [];
-        // Extract search term only from the part after the colon separator.
-        // Typing "<lora" or "<l" (no colon yet) should show all results, not
-        // filter for filenames containing "lora".
-        const colonIdx = tagword.indexOf(":");
-        const searchTerm = colonIdx >= 0 ? tagword.slice(colonIdx + 1) : "";
+        // Determine search term:
+        // - "<lora:X" or "<l:X" -> search term is X
+        // - "<" / "<l" / "<lo" / "<lor" / "<lora" -> user still typing the prefix, show all
+        // - "<X" (other) -> direct search for X
+        let searchTerm;
+        if (tagword.startsWith("<lora:")) {
+            searchTerm = tagword.slice("<lora:".length);
+        } else if (tagword.startsWith("<l:")) {
+            searchTerm = tagword.slice("<l:".length);
+        } else {
+            const raw = tagword.slice(1); // strip leading "<"
+            // If raw is a prefix of "lora" the user is still typing the keyword -> show all
+            searchTerm = "lora".startsWith(raw) ? "" : raw;
+        }
         if (searchTerm.length > 0) {
             let filterCondition = x => {
                 let regex = new RegExp(escapeRegExp(searchTerm, true), 'i');
