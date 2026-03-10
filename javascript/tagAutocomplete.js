@@ -9,6 +9,7 @@
     "--meta-text-color": ["#6b6f7b", "#a2a9b4"],
     "--embedding-v1-color": ["lightsteelblue", "#2b5797"],
     "--embedding-v2-color": ["skyblue", "#2d89ef"],
+    "--lora-color": ["#597ef7", "#2040c8"],
     "--live-translation-rt": ["whitesmoke", "#222"],
     "--live-translation-color-1": ["lightskyblue", "#2d89ef"],
     "--live-translation-color-2": ["palegoldenrod", "#eb5700"],
@@ -107,6 +108,9 @@ const autocompleteCSS = `
     }
     .acListItem.acEmbeddingV2 {
         color: var(--embedding-v2-color);
+    }
+    .acListItem.acLora {
+        color: var(--lora-color);
     }
     .acRuby {
         padding: var(--input-padding);
@@ -881,6 +885,11 @@ function addResultsToList(textArea, results, tagword, resetList) {
                     itemText.classList.add("acEmbeddingV1");
                 else if (result.meta.startsWith("v2"))
                     itemText.classList.add("acEmbeddingV2");
+            }
+
+            // Color LoRA and LyCORIS entries
+            if (result.type === ResultType.lora || result.type === ResultType.lyco) {
+                itemText.classList.add("acLora");
             }
 
             flexDiv.appendChild(metaDiv);
