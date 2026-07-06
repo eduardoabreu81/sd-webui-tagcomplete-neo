@@ -668,6 +668,7 @@ def on_ui_settings():
         "tac_modelKeywordLocation": shared.OptionInfo("Start of prompt", "Where to insert the trigger keyword", gr.Dropdown, lambda: {"choices": ["Start of prompt","End of prompt","Before LORA/LyCO","After LORA/LyCO"]}).info("Only relevant if the above option is enabled"),
         "tac_modelKeywordCivitai": shared.OptionInfo(False, "Fetch trigger words from CivitAI if not found in local .json").info("Calls GET /api/v1/model-versions/by-hash/{sha256} — result cached in .json sidecar, re-fetched only when the file changes"),
         "tac_civitaiApiKey": shared.OptionInfo("", "CivitAI API key for trigger word lookups").info("Required for early-access models. Leave blank for public models. Get your key at civitai.com/user/account"),
+        "tac_animaArtistPrefix": shared.OptionInfo("Off", "Auto-prefix Danbooru artist tags with '@' for ANIMA-based checkpoints", gr.Dropdown, lambda: {"choices": ["Off", "Auto"]}).info("Auto detects the loaded checkpoint's CivitAI base model (cached by hash, one API call per unique checkpoint) and prepends '@' to Danbooru artist-category (category 1) tags on insertion, matching ANIMA's tag convention. Reuses the CivitAI API key above."),
         "tac_wildcardCompletionMode": shared.OptionInfo("To next folder level", "How to complete nested wildcard paths", gr.Dropdown, lambda: {"choices": ["To next folder level","To first difference","Always fully"]}).info("e.g. \"hair/colours/light/...\""),
         # Alias settings
         "tac_alias.searchByAlias": shared.OptionInfo(True, "Search by alias"),
@@ -914,6 +915,69 @@ def api_tac(_: gr.Blocks, app: FastAPI):
             return JSONResponse({"trainedWords": trained_str})
         except Exception as e:
             print(f"[Tag Autocomplete Neo] CivitAI trigger word lookup failed: {e}")
+            return Response(status_code=500)
+
+    checkpoint_basemodel_cache_path = TEMP_PATH.joinpath("known_checkpoint_basemodels.json")
+
+    def load_checkpoint_basemodel_cache():
+        if not checkpoint_basemodel_cache_path.is_file():
+            return {}
+        try:
+            return json.loads(checkpoint_basemodel_cache_path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    def save_checkpoint_basemodel_cache(cache: dict):
+        try:
+            checkpoint_basemodel_cache_path.write_text(
+                json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] Could not save checkpoint base model cache: {e}")
+
+    @app.get("/tacapi/v1/civitai-checkpoint-basemodel/{sha256}")
+    async def get_civitai_checkpoint_basemodel(sha256: str):
+        """Look up a checkpoint's CivitAI base model family by hash.
+
+        Used to detect ANIMA-based checkpoints (and other base model families) so
+        the frontend can adjust tag insertion behavior (e.g. '@' artist prefix).
+
+        Priority:
+          1. Return cached result from the local JSON cache if the hash is known.
+          2. Call CivitAI GET /api/v1/model-versions/by-hash/{sha256}.
+          3. Save the baseModel field to the cache for future cache hits.
+        """
+        sha256_upper = sha256.upper()
+        cache = load_checkpoint_basemodel_cache()
+
+        if sha256_upper in cache:
+            return JSONResponse({"baseModel": cache[sha256_upper]})
+
+        api_key = getattr(shared.opts, "tac_civitaiApiKey", "").strip()
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        try:
+            response = requests.get(
+                f"https://civitai.com/api/v1/model-versions/by-hash/{sha256_upper}",
+                headers=headers,
+                timeout=(10, 20),
+            )
+            if response.status_code != 200:
+                return Response(status_code=response.status_code)
+            data = response.json()
+            if "error" in data:
+                return Response(status_code=404)
+
+            base_model = data.get("baseModel", "")
+
+            cache[sha256_upper] = base_model
+            save_checkpoint_basemodel_cache(cache)
+
+            return JSONResponse({"baseModel": base_model})
+        except Exception as e:
+            print(f"[Tag Autocomplete Neo] CivitAI checkpoint base model lookup failed: {e}")
             return Response(status_code=500)
 
     @app.get("/tacapi/v1/lora-cached-hash/{lora_name}")

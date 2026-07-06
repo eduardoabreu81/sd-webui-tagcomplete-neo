@@ -297,6 +297,7 @@ async function syncOptions() {
         modelKeywordCompletion: opts["tac_modelKeywordCompletion"],
         modelKeywordLocation: opts["tac_modelKeywordLocation"],
         civitaiKeywordLookup: opts["tac_modelKeywordCivitai"],
+        animaArtistPrefix: opts["tac_animaArtistPrefix"],
         wcWrap: opts["dp_parser_wildcard_wrap"] || "__", // to support custom wrapper chars set by dp_parser
         // Alias settings
         alias: {
@@ -524,6 +525,14 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
                 .replaceAll("[", "\\[")
                 .replaceAll("]", "\\]");
         }
+    }
+
+    // ANIMA-based checkpoints use '@' prefixed artist tags; auto-add it for Danbooru artist tags (category 1)
+    if (currentModelIsAnima && TAC_CFG.animaArtistPrefix !== "Off"
+        && tagType === ResultType.tag && result.category == 1
+        && TAC_CFG.tagFile && TAC_CFG.tagFile.toLowerCase().startsWith("danbooru")
+        && !sanitizedText.startsWith("@")) {
+        sanitizedText = "@" + sanitizedText;
     }
 
     if ((tagType === ResultType.wildcardFile || tagType === ResultType.yamlWildcard)
@@ -1746,11 +1755,13 @@ async function setup() {
     updateModelName();
     if (modelHashText) {
         currentModelHash = modelHashText.title
+        updateAnimaCheckpointStatus();
         let modelHashObserver = new MutationObserver((mutationList, observer) => {
             for (const mutation of mutationList) {
                 if (mutation.type === "attributes" && mutation.attributeName === "title") {
                     currentModelHash = mutation.target.title;
                     updateModelName();
+                    updateAnimaCheckpointStatus();
                     refreshEmbeddings();
                 }
             }

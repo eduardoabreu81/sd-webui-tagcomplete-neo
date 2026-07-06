@@ -23,6 +23,8 @@ var styleNames = [];
 // Selected model info for black/whitelisting
 var currentModelHash = "";
 var currentModelName = "";
+// Whether the current checkpoint was detected as ANIMA-based (for artist tag '@' prefixing)
+var currentModelIsAnima = false;
 
 // Current results
 var results = [];

@@ -338,6 +338,17 @@ function updateModelName() {
     }
 }
 
+// Detect whether the current checkpoint is ANIMA-based via CivitAI's base model info,
+// so artist tags can be auto-prefixed with '@' to match ANIMA's tag convention.
+async function updateAnimaCheckpointStatus() {
+    if (!TAC_CFG || TAC_CFG.animaArtistPrefix === "Off" || !currentModelHash) {
+        currentModelIsAnima = false;
+        return;
+    }
+    let data = await fetchTacAPI(`tacapi/v1/civitai-checkpoint-basemodel/${currentModelHash}`, true, true);
+    currentModelIsAnima = !!(data && data.baseModel && data.baseModel.toLowerCase().includes("anima"));
+}
+
 // From https://stackoverflow.com/a/61975440, how to detect JS value changes
 function observeElement(element, property, callback, delay = 0) {
     let elementPrototype = Object.getPrototypeOf(element);
