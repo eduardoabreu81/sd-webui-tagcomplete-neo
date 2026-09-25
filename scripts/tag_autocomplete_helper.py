@@ -44,18 +44,28 @@ except (ImportError, ValueError, sqlite3.Error) as e:
     print(f"[Tag Autocomplete Neo] Tag frequency database error: {e}")
     db = None
 
+# Attributes that hold a ClassicTextProcessingEngine (the only Forge Neo engine with
+# textual inversion support): SD1.5 uses the plain name, SDXL/Flux/Mugen use _l,
+# and the SDXL refiner only has _g.
+EMBED_ENGINE_ATTRS = ("text_processing_engine", "text_processing_engine_l", "text_processing_engine_g")
+# Same file types accepted by backend/text_processing/textual_inversion.py
+EMB_FILE_EXTENSIONS = {".safetensors", ".bin", ".pt", ".png", ".webp", ".jxl", ".avif"}
+
 def get_embed_db(sd_model=None):
-    """Returns the embedding database from the Forge Neo text processing engine."""
+    """Returns the embedding database from the Forge Neo text processing engine.
+
+    Returns None when no model is loaded or the model's text encoder has no
+    textual inversion support (Anima, Chroma, Qwen, Lumina, Wan, etc.).
+    """
     try:
         forge_model = sd_model if sd_model is not None else sd_models.model_data.get_sd_model()
         if forge_model is None:
             return None
-        engine = getattr(
-            forge_model,
-            "text_processing_engine",
-            getattr(forge_model, "text_processing_engine_l", None),
-        )
-        return getattr(engine, "embeddings", None) if engine is not None else None
+        for attr in EMBED_ENGINE_ATTRS:
+            embed_db = getattr(getattr(forge_model, attr, None), "embeddings", None)
+            if embed_db is not None:
+                return embed_db
+        return None
     except Exception:
         return None
 
@@ -222,13 +232,18 @@ def get_embeddings(sd_model):
     emb_unknown = []
     results = []
 
+    embed_db = get_embed_db(sd_model)
+    if embed_db is None:
+        # Expected for models without textual inversion support; list files silently.
+        write_to_temp_file('emb.txt', get_embeddings_from_folder())
+        return
+
     try:
-        embed_db = get_embed_db(sd_model)
         # Re-register callback if needed
         global load_textual_inversion_embeddings
-        if embed_db is not None and load_textual_inversion_embeddings != embed_db.load_textual_inversion_embeddings:
+        if load_textual_inversion_embeddings != embed_db.load_textual_inversion_embeddings:
             load_textual_inversion_embeddings = embed_db.load_textual_inversion_embeddings
-        
+
         loaded = embed_db.word_embeddings
         skipped = embed_db.skipped_embeddings
 
@@ -276,17 +291,25 @@ def get_embeddings(sd_model):
                     emb_unknown.append((emb_resolved, rel, ""))
 
         results = sort_models(emb_v1) + sort_models(emb_v2) + sort_models(emb_vXL) + sort_models(emb_unknown)
-    except AttributeError:
-        print("[Tag Autocomplete Neo] Old webui version or unrecognized model shape, using fallback for embedding completion.")
-        # Get a list of all embeddings in the folder
-        all_embeds = [str(e.relative_to(EMB_PATH)) for e in EMB_PATH.rglob("*") if e.suffix in {".bin", ".pt", ".png",'.webp', '.jxl', '.avif'} and e.is_file()]
-        # Remove files with a size of 0
-        all_embeds = [e for e in all_embeds if EMB_PATH.joinpath(e).stat().st_size > 0]
-        # Remove file extensions
-        all_embeds = [e[:e.rfind('.')] for e in all_embeds]
-        results = [e + "," for e in all_embeds]
+    except AttributeError as e:
+        print(f"[Tag Autocomplete Neo] Unexpected embedding database structure, using folder scan fallback: {e}")
+        results = get_embeddings_from_folder()
 
     write_to_temp_file('emb.txt', results)
+
+def get_embeddings_from_folder():
+    """Fallback: list embedding files from EMB_PATH without version info."""
+    try:
+        all_embeds = [
+            e.relative_to(EMB_PATH).as_posix()
+            for e in EMB_PATH.rglob("*")
+            if e.suffix.lower() in EMB_FILE_EXTENSIONS and e.is_file() and e.stat().st_size > 0
+        ]
+    except OSError as e:
+        print(f"[Tag Autocomplete Neo] Error scanning embeddings folder: {e}")
+        return []
+    # Remove file extensions
+    return [e[:e.rfind('.')] + "," for e in all_embeds]
 
 model_keyword_installed = write_model_keyword_path()
 
