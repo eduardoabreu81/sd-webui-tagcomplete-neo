@@ -32,6 +32,13 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.2.2 — ANIMA artist prefix & embedding fixes
+
+- **ANIMA artist prefix** — new setting that automatically adds `@` before Danbooru artist tags when an ANIMA-based checkpoint is loaded ⭐
+- **No more "Old webui version" warning** — models without embedding support (Anima, Chroma, Qwen, Lumina, Wan…) no longer print a misleading warning on every load
+- **`.safetensors` embeddings listed** — embedding suggestions now include `.safetensors` files on every model
+- **Suggestions stay in sync while deleting** — the dropdown updates immediately when you erase text
+
 ### v0.2.1 — Mobile backspace fix & mid-prompt LoRA keywords
 
 - **Backspace no longer lags on mobile** — holding the delete key no longer triggers heavy translation handlers, making deletion smooth even on older phones
@@ -51,6 +58,13 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 📖 Changelog
+
+### v0.2.2 — ANIMA artist prefix & embedding fixes
+- New `Auto-prefix Danbooru artist tags with '@' for ANIMA-based checkpoints` setting (Off/Auto); detects the checkpoint's CivitAI base model by hash, cached locally
+- Models whose text encoder has no textual inversion support no longer trigger the "Old webui version or unrecognized model shape" warning; embeddings are listed from the folder silently
+- SDXL refiner embeddings are now read from `text_processing_engine_g`
+- Folder-scan fallback includes `.safetensors` and matches extensions case-insensitively
+- Autocomplete runs immediately on delete so the dropdown stays in sync with the prompt
 
 ### v0.2.1 — Mobile backspace fix & mid-prompt LoRA keywords
 - Backspace no longer triggers heavy translation handlers, eliminating lag when holding delete on mobile
@@ -106,6 +120,12 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - Extension resilience after Forge updates ✅
 - CivitAI trigger word lookup with SHA256 cache ✅
 - "After LoRA/LyCO" insertion option ✅
+
+### v0.2.2 — ANIMA artist prefix & embedding fixes ✅
+- `@` prefix for Danbooru artist tags on ANIMA checkpoints ✅
+- Misleading embedding fallback warning removed ✅
+- `.safetensors` embeddings in folder-scan fallback ✅
+- Dropdown sync on delete ✅
 
 ### v0.2.1 — Mobile backspace fix & mid-prompt LoRA keywords ✅
 - Backspace lag eliminated (updateRuby skipped on delete) ✅
