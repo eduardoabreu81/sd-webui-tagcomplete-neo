@@ -32,46 +32,30 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
-### v0.2.4: Hidden-folder LoRAs & training checkpoints
+### v0.3.0: LoRAs that match your model
 
 > ⚠️ **Updating from an older version?**
 > - This version needs **Python 3.11 or newer**. Forge Neo recommends Python 3.13, so most installs are already fine. If your Forge Neo still runs on Python 3.10, LoRA suggestions will stop working until you upgrade.
-> - **LoRAs inside folders whose name starts with `.` now show up** in the suggestions. To hide them again, turn off **List the models/files under hidden directories** in Forge Neo's settings. Forge itself only loads them while that option is on.
+> - **LoRAs are now sorted by the UI Preset** (sd, xl, flux, qwen…): the ones made for your model come first, and the others are labelled with their model type, like `Lora · flux`. To hide the others, or go back to the old list, change **Filter Loras by the architecture of the UI preset** in Settings → Tag Autocomplete.
+> - **`.pt` and `.ckpt` LoRAs are no longer suggested.** They still work when you type them in the prompt by hand.
+> - **LoRAs inside folders whose name starts with `.` now show up** in the suggestions. To hide them again, turn off **List the models/files under hidden directories** in Forge Neo's settings.
 
-- **LoRAs in hidden folders are listed**: LoRA files in folders like `.archive` appear in suggestions, following the same Forge Neo option that decides whether they can be loaded ([#5](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/5))
-- **Each training checkpoint gets its own name**: files saved at different training steps (`mylora-000001000`, `mylora-000002000`…) are no longer all inserted under the same name, so the LoRA you pick is the one Forge Neo loads ([#5](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/5))
-- **"Filename" naming works from startup**: choosing "Filename" for how LoRAs are referred to in the prompt now applies even before a model is loaded
-
-### v0.2.3: Wildcard contents fix
-
-- **Wildcard files show their contents again**: after choosing a wildcard file, the popup lists the lines inside it instead of listing the files again ([#4](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/4))
-
-### v0.2.2 — ANIMA artist prefix & embedding fixes
-
-- **ANIMA artist prefix** — new setting that automatically adds `@` before Danbooru artist tags when an ANIMA-based checkpoint is loaded ⭐
-- **No more "Old webui version" warning** — models without embedding support (Anima, Chroma, Qwen, Lumina, Wan…) no longer print a misleading warning on every load
-- **`.safetensors` embeddings listed** — embedding suggestions now include `.safetensors` files on every model
-- **Suggestions stay in sync while deleting** — the dropdown updates immediately when you erase text
-
-### v0.2.1 — Mobile backspace fix & mid-prompt LoRA keywords
-
-- **Backspace no longer lags on mobile** — holding the delete key no longer triggers heavy translation handlers, making deletion smooth even on older phones
-- **Mid-prompt LoRA keywords fixed** — when using "After LORA/LyCO" insertion, trigger words now insert correctly even if the LoRA token is in the middle of the prompt (no more overwritten text)
-- **Multi-word tag search** — type any word from a tag with underscores and it will be found (e.g. `towards` → `walking_towards_viewer`)
-
-### v0.2.0 — Smoother typing & mobile support
-
-- **Faster tag suggestions** — the autocomplete list now appears more quickly, even with large tag databases like the merged Danbooru/e621 list
-- **Much smoother typing on mobile** — typing in the prompt box no longer lags or stutters on phones and tablets
-- **Lower input delay** — reduced waiting time between keystrokes and results appearing on screen
-- **Indexed search toggle** — new setting to switch between fast prefix-indexed mode and legacy full-scan mode ⭐
-- **Status indicator** — a small colored dot in the toolbar shows when the extension is loading (orange), ready (green), or encountered an error (red) ⭐
+- **LoRA suggestions follow the UI Preset**: the extension recognises which model each LoRA was made for (SD 1.5, SDXL, Flux, Flux.2 Klein, Qwen-Image, Z-Image, Wan, Anima, Chroma and more) and lists the matching ones first. Switching the preset updates the list right away. LoRAs it cannot identify are still listed, marked `unknown` ⭐ ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
+- **"Recent, then frequent" sorting**: a new choice for frequency sorting that puts the last few tags or LoRAs you used at the top, then the ones you use most ⭐ ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
+- **"Name (ignore folders)" sorting**: sorts LoRAs and wildcards by file name, even when they are spread across subfolders ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
+- **LoRAs in hidden folders are listed**, and **each training checkpoint gets its own name** (`mylora-000001000`, `mylora-000002000`…), so the LoRA you pick is the one Forge Neo loads ([#5](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/5))
 
 ---
 
 ---
 
 ## 📖 Changelog
+
+### v0.3.0: LoRAs that match your model
+- New `Filter Loras by the architecture of the UI preset` setting (Off / Hide other architectures / Show matching first, default Show matching first). The architecture is read from the safetensors header only (tensor names, shapes and metadata), or from the "sd version" set in Forge's Extra Networks metadata editor, and cached in `tags/temp/lora_arch_cache.json` (#6)
+- `.pt` and `.ckpt` LoRAs are no longer suggested, since their header cannot be read safely; they still count for the alias rule from v0.2.4 (#6)
+- New `Recent, then frequent` frequency sorting and `Number of recently used results listed first` setting (default 3); existing sorting choices keep the same order (#6)
+- New `Name (ignore folders)` model sort order (#6)
 
 ### v0.2.4: Hidden-folder LoRAs & training checkpoints
 - LoRA/LyCORIS files under hidden folders (names starting with `.`) are listed when Forge Neo's `List the models/files under hidden directories` option is on; preview, info, trigger word and hash lookups find them too. Only folders inside the LoRA directory count as hidden (#5)
@@ -171,13 +155,17 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - Apostrophe crash and highlight fixes ✅
 - Mobile typing no longer lags or stutters ✅
 
-### v0.3.0 — Tag data & relevance (planned)
+### v0.3.0: LoRAs that match your model ✅
+- LoRA suggestions follow the UI Preset's architecture ✅
+- "Recent, then frequent" and "Name (ignore folders)" sorting ✅
+
+### v0.4.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
 - Better tag coverage for Pony / NoobAI / Illustrious models
 - Sort suggestions by relevance to tags already in the prompt
 - Use multiple tag list files simultaneously
 
-### v0.4.0 — Smart matching (planned)
+### v0.5.0 — Smart matching (planned)
 - Fuzzy matching (e.g. `detco` → `detached_collar`)
 - Auto-switch tag list based on the loaded model
 
@@ -203,6 +191,7 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ### ➕ Extra Networks
 
 - **LoRA and LyCORIS autocomplete** triggered by `<`
+- **Model-aware LoRA list** — LoRAs made for the current UI Preset come first ⭐
 - **Embedding autocomplete** triggered by `<e:`
 - **Thumbnail preview** in the completion popup
 - **Correct alias insertion** — uses the same identifier Forge Neo expects (`ss_output_name` or filename, respecting your Extra Networks setting) so tokens never blink ⭐
