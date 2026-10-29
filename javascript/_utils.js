@@ -207,11 +207,45 @@ function calculateUsageBias(result, count, uses) {
         case "Logarithmic (strong)":
             return Math.log(1 + count) + 2 * Math.log(1 + uses);
         case "Usage first":
+        case "Recent, then frequent":
             return uses;
         default:
             return count;
     }
 }
+// Sort results by recorded usage; counts are {name, type, count, lastUseDate} from getUseCounts.
+// "Recent, then frequent" first lists the last few distinct results used in this kind of prompt,
+// most recent first and whatever their count, then the rest by usage.
+// Array.prototype.sort is stable, so ties keep the incoming (base) order.
+function sortByUsage(results, counts) {
+    const usageKey = r => `${r.type}|${r.type === ResultType.chant ? r.aliases : r.text}`;
+    const stats = new Map(counts.map(c => [`${c.type}|${c.name}`, c]));
+
+    // Pre-calculate weights to prevent duplicate work
+    const weights = new Map();
+    results.forEach(result => {
+        const useStats = stats.get(usageKey(result));
+        weights.set(result, calculateUsageBias(result, result.count, useStats?.count || 0));
+    });
+
+    // Rank the most recently used of these results; lastUseDate is SQLite's
+    // "YYYY-MM-DD HH:MM:SS", so it sorts as text
+    const recentRank = new Map();
+    const recentCount = TAC_CFG.frequencyRecentCount ?? 0;
+    if (TAC_CFG.frequencyFunction === "Recent, then frequent" && recentCount > 0) {
+        [...new Set(results.map(usageKey))]
+            .map(key => stats.get(key))
+            .filter(c => c && c.count > 0 && c.lastUseDate)
+            .sort((a, b) => String(b.lastUseDate).localeCompare(String(a.lastUseDate)))
+            .slice(0, recentCount)
+            .forEach((c, i) => recentRank.set(`${c.type}|${c.name}`, i));
+    }
+    const rank = r => recentRank.get(usageKey(r)) ?? Number.MAX_SAFE_INTEGER;
+    results.forEach(r => { if (recentRank.has(usageKey(r))) r.usageBias = true; });
+
+    return results.sort((a, b) => (rank(a) - rank(b)) || (weights.get(b) - weights.get(a)));
+}
+
 // Beautify return type for easier parsing
 function mapUseCountArray(useCounts, posAndNeg = false) {
     return useCounts.map(useCount => {

@@ -274,6 +274,7 @@ async function syncOptions() {
         useEmbeddings: opts["tac_useEmbeddings"],
         includeEmbeddingsInNormalResults: opts["tac_includeEmbeddingsInNormalResults"],
         useLoras: opts["tac_useLoras"],
+        loraArchFilter: opts["tac_loraArchFilter"],
         useLycos: opts["tac_useLycos"],
         useLoraPrefixForLycos: opts["tac_useLoraPrefixForLycos"],
         showWikiLinks: opts["tac_showWikiLinks"],
@@ -281,6 +282,7 @@ async function syncOptions() {
         modelSortOrder: opts["tac_modelSortOrder"],
         frequencySort: opts["tac_frequencySort"],
         frequencyFunction: opts["tac_frequencyFunction"],
+        frequencyRecentCount: opts["tac_frequencyRecentCount"],
         frequencyMinCount: opts["tac_frequencyMinCount"],
         frequencyMaxAge: opts["tac_frequencyMaxAge"],
         frequencyRecommendCap: opts["tac_frequencyRecommendCap"],
@@ -1453,22 +1455,14 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
         const names = TAC_CFG.frequencyIncludeAlias ? tagNames.concat(aliasNames) : tagNames;
         const counts = await getUseCounts(names, types, isNegative) || [];
 
-        // Pre-calculate weights to prevent duplicate work
-        const resultBiasMap = new Map();
-        results.forEach(result => {
-            const name = result.type === ResultType.chant ? result.aliases : result.text;
-            const type = result.type;
-            // Find matching pair from DB results
-            const useStats = counts.find(c => c.name === name && c.type === type);
-            const uses = useStats?.count || 0;
-            // Calculate & set weight
-            const weight = calculateUsageBias(result, result.count, uses)
-            resultBiasMap.set(result, weight);
-        });
-        // Actual sorting with the pre-calculated weights
-        results = results.sort((a, b) => {
-            return resultBiasMap.get(b) - resultBiasMap.get(a);
-        });
+        results = sortByUsage(results, counts);
+    }
+
+    // LoRA architecture filter: LoRAs of the UI preset's architecture, then unknown, then others
+    // (others only remain in "Show matching first"). Array.prototype.sort is stable, so
+    // name/date/frequency order is kept inside each group.
+    if (TAC_CFG.loraArchFilter && TAC_CFG.loraArchFilter !== "Off" && results.some(r => r.archRank !== undefined)) {
+        results = results.sort((a, b) => (a.archRank ?? 1) - (b.archRank ?? 1));
     }
 
     // Slice if the user has set a max result count and we are not in a extra networks / wildcard list
