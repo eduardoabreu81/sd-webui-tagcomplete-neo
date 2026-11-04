@@ -12,7 +12,7 @@ const LORA_ARCH_SEPARATOR = " " + String.fromCharCode(0xb7) + " ";
 // Forge Neo's UI preset, when the architecture filter can use it; null turns the filter off.
 function currentLoraArchPreset() {
     if (!TAC_CFG.loraArchFilter || TAC_CFG.loraArchFilter === "Off") return null;
-    const value = gradioApp().querySelector("#forge_ui_preset input")?.value?.trim().toLowerCase();
+    const value = currentUiPreset();
     return value && LORA_ARCH_LABELS.has(value) ? value : null;
 }
 

@@ -375,7 +375,9 @@ async function syncOptions() {
     }
 
     // Apply changes
+    const animaPrefixChanged = TAC_CFG?.animaArtistPrefix !== newCFG.animaArtistPrefix;
     TAC_CFG = newCFG;
+    if (animaPrefixChanged) updateAnimaCheckpointStatus();
 
     // Callback
     await processQueue(QUEUE_AFTER_CONFIG_CHANGE, null);
@@ -530,7 +532,7 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
     }
 
     // ANIMA-based checkpoints use '@' prefixed artist tags; auto-add it for Danbooru artist tags (category 1)
-    if (currentModelIsAnima && TAC_CFG.animaArtistPrefix !== "Off"
+    if (TAC_CFG.animaArtistPrefix !== "Off" && checkpointIsAnima()
         && tagType === ResultType.tag && result.category == 1
         && TAC_CFG.tagFile && TAC_CFG.tagFile.toLowerCase().startsWith("danbooru")
         && !sanitizedText.startsWith("@")) {
