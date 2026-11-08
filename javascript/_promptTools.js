@@ -110,13 +110,17 @@ var TacPromptTools = (() => {
     }
 
     // Tidies a prompt: trims it, drops empty tags and joins the tags of each line with `separator`.
+    // Each line with tags then ends with `lineEnd` ("," with `trailingComma`), and the last line
+    // with `lastLineEnd` (default `lineEnd`); BREAK/AND keyword lines end with nothing.
     // Line breaks, bracket contents and quoted text are kept as written.
     // Text with unbalanced brackets or quotes is returned unchanged.
-    function formatPrompt(text, { separator = ", ", trailingComma = false } = {}) {
+    function formatPrompt(text, { separator = ", ", trailingComma = false, lineEnd, lastLineEnd } = {}) {
         if (text == null) return text;
         if (!text.trim()) return "";
         const { segments, balanced } = splitSegments(text.trim());
         if (!balanced || looksLikeData(segments)) return text;
+        lineEnd ??= trailingComma ? "," : "";
+        lastLineEnd ??= lineEnd;
 
         const lines = [];
         let tags = [];
@@ -125,7 +129,7 @@ var TacPromptTools = (() => {
             if (tag) tags.push(tag);
             if (s.separator === ",") continue;
             let line = tags.join(separator);
-            if (trailingComma && line && !LINE_KEYWORDS.test(line)) line += ",";
+            if (line && !LINE_KEYWORDS.test(line)) line += s.separator ? lineEnd : lastLineEnd;
             lines.push(line);
             tags = [];
         }
