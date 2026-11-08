@@ -32,32 +32,22 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
-### v0.3.2: Settings apply right away
+### v0.4.0: Prompt helpers
 
-- **Changed settings take effect right away**: before, the extension could keep the old values until Forge Neo restarted, even after **Apply settings** or reloading the page ([#7](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/7))
-
-### v0.3.1: ANIMA artist prefix fix
-
-- **The `@` artist prefix follows the UI Preset**: artist tags get `@` as soon as you select the `anima` preset, and never on other presets. Before, the extension could still be looking at the previously loaded checkpoint ([#7](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/7))
-
-### v0.3.0: LoRAs that match your model
-
-> ⚠️ **Updating from an older version?**
-> - This version needs **Python 3.11 or newer**. Forge Neo recommends Python 3.13, so most installs are already fine. If your Forge Neo still runs on Python 3.10, LoRA suggestions will stop working until you upgrade.
-> - **LoRAs are now sorted by the UI Preset** (sd, xl, flux, qwen…): the ones made for your model come first, and the others are labelled with their model type, like `Lora · flux`. To hide the others, or go back to the old list, change **Filter Loras by the architecture of the UI preset** in Settings → Tag Autocomplete.
-> - **`.pt` and `.ckpt` LoRAs are no longer suggested.** They still work when you type them in the prompt by hand.
-> - **LoRAs inside folders whose name starts with `.` now show up** in the suggestions. To hide them again, turn off **List the models/files under hidden directories** in Forge Neo's settings.
-
-- **LoRA suggestions follow the UI Preset**: the extension recognises which model each LoRA was made for (SD 1.5, SDXL, Flux, Flux.2 Klein, Qwen-Image, Z-Image, Wan, Anima, Chroma and more) and lists the matching ones first. Switching the preset updates the list right away. LoRAs it cannot identify are still listed, marked `unknown` ⭐ ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
-- **"Recent, then frequent" sorting**: a new choice for frequency sorting that puts the last few tags or LoRAs you used at the top, then the ones you use most ⭐ ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
-- **"Name (ignore folders)" sorting**: sorts LoRAs and wildcards by file name, even when they are spread across subfolders ([#6](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/6))
-- **LoRAs in hidden folders are listed**, and **each training checkpoint gets its own name** (`mylora-000001000`, `mylora-000002000`…), so the LoRA you pick is the one Forge Neo loads ([#5](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/pull/5))
+- **Tags already in the prompt are dimmed** in the suggestions, next to the existing 🔁 marker ⭐
+- **Picking one of them selects it** instead of adding a duplicate, and removes the word you were typing ⭐
+- **Prompt formatter**: tidies commas and spaces between tags. Press **Alt+Shift+F**, or set **Prompt formatter** to **Automatic (on blur)** in Settings → Tag Autocomplete to run it whenever you leave the prompt box ⭐
 
 ---
 
 ---
 
 ## 📖 Changelog
+
+### v0.4.0: Prompt helpers
+- New `Dim results the prompt already contains` and `Choosing a tag the prompt already contains selects it instead of adding a duplicate` settings (both on by default). The selection only happens when the typed word sits alone between commas; inside brackets or weights the tag is inserted as before
+- New `Prompt formatter` setting (Off / Manual (Alt+Shift+F) / Automatic (on blur), default Manual) and `Prompt formatter ends each line with a comma`. Tags are joined with `, ` or `,` following `Append space on tag autocompletion`; bracket contents, quoted text and line breaks stay as written, and prompts with unbalanced brackets or quotes, or plain number lists, are left untouched
+- Ideas adapted from [ComfyUI-Autocomplete-Plus](https://github.com/newtextdoc1111/ComfyUI-Autocomplete-Plus) (MIT)
 
 ### v0.3.2: Settings apply right away
 - Setting changes now reach the extension through Forge Neo's `onOptionsChanged` callback. The Apply settings listener used a selector that does not exist in Forge Neo, and on page load the extension read the values from server startup before the current ones arrived (#7)
@@ -179,13 +169,17 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ### v0.3.2: Settings apply right away ✅
 - Setting changes reach the extension without a restart ✅
 
-### v0.4.0 — Tag data & relevance (planned)
+### v0.4.0: Prompt helpers ✅
+- Dim and reuse tags already in the prompt ✅
+- Prompt formatter ✅
+
+### v0.5.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
 - Better tag coverage for Pony / NoobAI / Illustrious models
 - Sort suggestions by relevance to tags already in the prompt
 - Use multiple tag list files simultaneously
 
-### v0.5.0 — Smart matching (planned)
+### v0.6.0 — Smart matching (planned)
 - Fuzzy matching (e.g. `detco` → `detached_collar`)
 - Auto-switch tag list based on the loaded model
 
@@ -206,6 +200,7 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - **Tag color coding** by category, with post count for relevance
 - **Alias and translation search** — find tags by their alternate names or translated terms
 - **Frequency sorting** — remembers your most-used tags and promotes them to the top ⭐
+- **Prompt helpers** — dims tags already in the prompt, reuses them instead of adding duplicates, and tidies commas with Alt+Shift+F or on blur ⭐
 - **Status indicator** — colored dot in the toolbar shows when the extension is loading, ready, or in error state ⭐
 
 ### ➕ Extra Networks
@@ -267,6 +262,7 @@ To switch lists, change **Tag filename** in **Settings → Tag Autocomplete**.
 
 - **[a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete)** by DominikDoom — original project, all core functionality
 - **[sd-webui-tagcomplete-neo](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo)** by [Eduardo Abreu](https://github.com/eduardoabreu81) — Forge Neo fork
+- **[ComfyUI-Autocomplete-Plus](https://github.com/newtextdoc1111/ComfyUI-Autocomplete-Plus)** by newtextdoc1111 — ideas for the prompt helpers (MIT)
 - **[Forge Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)** by Haoming02
 
 ---
