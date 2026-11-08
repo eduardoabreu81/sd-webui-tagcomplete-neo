@@ -32,17 +32,21 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
-### v0.4.0: Prompt helpers
+### v0.5.0: Tags with spaces
 
-- **Tags already in the prompt are dimmed** in the suggestions, next to the existing 🔁 marker ⭐
-- **Picking one of them selects it** instead of adding a duplicate, and removes the word you were typing ⭐
-- **Prompt formatter**: tidies commas and spaces between tags. Press **Alt+Shift+F**, or set **Prompt formatter** to **Automatic (on blur)** in Settings → Tag Autocomplete to run it whenever you leave the prompt box ⭐
+- **Type tags with spaces**: `long hai` now suggests `long_hair`, and picking it replaces both words. Prompts written in plain sentences keep suggesting single tags as before ⭐
+- **Faster sorting** of suggestions when "Recent, then frequent" frequency sorting is on ⭐
 
 ---
 
 ---
 
 ## 📖 Changelog
+
+### v0.5.0: Tags with spaces
+- When the last two or three words before the cursor are plain words separated by single spaces and match a tag together (`long hai` → `long_hair`), they are searched and replaced as one tag. Otherwise only the last word is searched, as before. Words inside brackets, weights, extra networks or wildcards are not combined
+- Usage sorting looks up the "Recent, then frequent" ranks once per search instead of on every comparison
+- Ideas from [asugonomi](https://github.com/asugonomi)'s fork
 
 ### v0.4.0: Prompt helpers
 - New `Dim results the prompt already contains` and `Choosing a tag the prompt already contains selects it instead of adding a duplicate` settings (both on by default). The selection only happens when the typed word sits alone between commas; inside brackets or weights the tag is inserted as before
@@ -173,13 +177,17 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - Dim and reuse tags already in the prompt ✅
 - Prompt formatter ✅
 
-### v0.5.0 — Tag data & relevance (planned)
+### v0.5.0: Tags with spaces ✅
+- Multi-word tags typed with spaces ✅
+- Faster usage sorting ✅
+
+### v0.6.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
 - Better tag coverage for Pony / NoobAI / Illustrious models
 - Sort suggestions by relevance to tags already in the prompt
 - Use multiple tag list files simultaneously
 
-### v0.6.0 — Smart matching (planned)
+### v0.7.0 — Smart matching (planned)
 - Fuzzy matching (e.g. `detco` → `detached_collar`)
 - Auto-switch tag list based on the loaded model
 
@@ -200,6 +208,7 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 - **Tag color coding** by category, with post count for relevance
 - **Alias and translation search** — find tags by their alternate names or translated terms
 - **Frequency sorting** — remembers your most-used tags and promotes them to the top ⭐
+- **Tags with spaces** — `long hai` finds `long_hair` ⭐
 - **Prompt helpers** — dims tags already in the prompt, reuses them instead of adding duplicates, and tidies commas with Alt+Shift+F or on blur ⭐
 - **Status indicator** — colored dot in the toolbar shows when the extension is loading, ready, or in error state ⭐
 
@@ -262,6 +271,7 @@ To switch lists, change **Tag filename** in **Settings → Tag Autocomplete**.
 
 - **[a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete)** by DominikDoom — original project, all core functionality
 - **[sd-webui-tagcomplete-neo](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo)** by [Eduardo Abreu](https://github.com/eduardoabreu81) — Forge Neo fork
+- **[asugonomi](https://github.com/asugonomi)** — ideas for multi-word completion and faster usage sorting
 - **[ComfyUI-Autocomplete-Plus](https://github.com/newtextdoc1111/ComfyUI-Autocomplete-Plus)** by newtextdoc1111 — ideas for the prompt helpers (MIT)
 - **[Forge Neo](https://github.com/Haoming02/sd-webui-forge-classic/tree/neo)** by Haoming02
 
