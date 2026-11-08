@@ -96,6 +96,9 @@ const autocompleteCSS = `
         content: "🔁";
         margin-right: 2px;
     }
+    .autocompleteResultsList > li.acUsedTag .acListItem {
+        opacity: 0.5;
+    }
     .acWikiLink {
         padding: 0.5rem;
         margin: -0.5rem 0 -0.5rem -0.5rem;
@@ -300,6 +303,11 @@ async function syncOptions() {
         modelKeywordLocation: opts["tac_modelKeywordLocation"],
         civitaiKeywordLookup: opts["tac_modelKeywordCivitai"],
         animaArtistPrefix: opts["tac_animaArtistPrefix"],
+        // Prompt helper settings
+        dimUsedTags: opts["tac_dimUsedTags"],
+        selectUsedTag: opts["tac_selectUsedTag"],
+        formatMode: opts["tac_formatMode"],
+        formatTrailingComma: opts["tac_formatTrailingComma"],
         wcWrap: opts["dp_parser_wildcard_wrap"] || "__", // to support custom wrapper chars set by dp_parser
         // Alias settings
         alias: {
@@ -502,8 +510,46 @@ function getTagRegex() {
     return cachedTagRegex;
 }
 
+// Replaces the whole prompt the same way insertTextAtCursor does, so Gradio picks up the change
+function setPromptText(textArea, text, caret) {
+    textArea.value = text;
+    textArea.selectionStart = textArea.selectionEnd = Math.min(caret, text.length);
+    updateInput(textArea);
+}
+
+// Choosing a tag the prompt already contains selects that occurrence instead of adding a duplicate.
+// Only applies while the tag being typed sits alone in a plain segment, which is then removed.
+function selectUsedTag(textArea, tag) {
+    const text = textArea.value;
+    const caret = textArea.selectionStart;
+    const current = TacPromptTools.segmentAt(text, caret);
+    if (!current || !current.text.trim() || /[()[\]{}<>:|]/.test(current.text)) return false;
+    const found = TacPromptTools.findTag(text, tag, caret);
+    if (!found) return false;
+
+    const removal = TacPromptTools.removalRange(text, current);
+    const shift = found.start > removal.start ? removal.end - removal.start : 0;
+    setPromptText(textArea, text.slice(0, removal.start) + text.slice(removal.end), found.start - shift);
+    textArea.setSelectionRange(found.start - shift, found.end - shift);
+    hideResults(textArea);
+    tagword = "";
+    return true;
+}
+
+// Tidies commas and spaces between tags. The separator follows the "Append space" setting.
+function formatPromptArea(textArea) {
+    const text = textArea.value;
+    const formatted = TacPromptTools.formatPrompt(text, {
+        separator: TAC_CFG.appendSpace ? ", " : ",",
+        trailingComma: TAC_CFG.formatTrailingComma
+    });
+    if (formatted !== text) setPromptText(textArea, formatted, textArea.selectionStart);
+}
+
 // On click, insert the tag into the prompt textbox with respect to the cursor position
 async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithoutChoice = false) {
+    if (TAC_CFG.selectUsedTag && result.type === ResultType.tag && selectUsedTag(textArea, result.text)) return;
+
     let text = result.text;
     let tagType = result.type;
 
@@ -991,6 +1037,7 @@ function addResultsToList(textArea, results, tagword, resetList) {
                     span.classList.add("used");
                     span.title = "🔁 The prompt already contains this tag";
                 }
+                if (TAC_CFG.dimUsedTags) li.classList.add("acUsedTag");
             }
         }
 
@@ -1682,8 +1729,28 @@ function addAutocompleteToArea(area) {
             if (!hideBlocked)
                 hideResults(area);
         }, 400));
-        // Add up and down arrow event listener
-        area.addEventListener('keydown', (e) => navigateInList(area, e));
+        // Prompt formatter on leaving the textbox. Clicking a result also blurs the textbox,
+        // and that click must not reformat the prompt before the tag is inserted.
+        let clickingResult = false;
+        resultsDiv.addEventListener('mousedown', () => {
+            clickingResult = true;
+            setTimeout(() => { clickingResult = false; }, 0);
+        });
+        area.addEventListener('focusout', () => {
+            if (!clickingResult && TAC_CFG.formatMode === "Automatic (on blur)" && isEnabled())
+                formatPromptArea(area);
+        });
+        // Add up and down arrow event listener, plus the Alt+Shift+F formatter shortcut
+        area.addEventListener('keydown', (e) => {
+            if (e.code === "KeyF" && e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey
+                && TAC_CFG.formatMode !== "Off" && isEnabled()) {
+                e.preventDefault();
+                hideResults(area);
+                formatPromptArea(area);
+                return;
+            }
+            navigateInList(area, e);
+        });
         // CompositionEnd fires after the user has finished IME composing
         // We need to block hide here to prevent the enter key from insta-closing the results
         area.addEventListener('compositionend', () => {

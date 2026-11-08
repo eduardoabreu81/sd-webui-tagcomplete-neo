@@ -752,6 +752,11 @@ def on_ui_settings():
         "tac_modelKeywordCivitai": shared.OptionInfo(False, "Fetch trigger words from CivitAI if not found in local .json").info("Calls GET /api/v1/model-versions/by-hash/{sha256} — result cached in .json sidecar, re-fetched only when the file changes"),
         "tac_civitaiApiKey": shared.OptionInfo("", "CivitAI API key for trigger word lookups").info("Required for early-access models. Leave blank for public models. Get your key at civitai.com/user/account"),
         "tac_animaArtistPrefix": shared.OptionInfo("Off", "Auto-prefix Danbooru artist tags with '@' for ANIMA-based checkpoints", gr.Dropdown, lambda: {"choices": ["Off", "Auto"]}).info("Auto prepends '@' to Danbooru artist-category (category 1) tags on insertion while the UI Preset is 'anima', matching ANIMA's tag convention. Without a UI Preset it checks the checkpoint's CivitAI base model instead (cached by hash), reusing the CivitAI API key above."),
+        # Prompt helper settings
+        "tac_dimUsedTags": shared.OptionInfo(True, "Dim results the prompt already contains").info("shown next to the 🔁 marker"),
+        "tac_selectUsedTag": shared.OptionInfo(True, "Choosing a tag the prompt already contains selects it instead of adding a duplicate").info("the partly typed word is removed"),
+        "tac_formatMode": shared.OptionInfo("Manual (Alt+Shift+F)", "Prompt formatter", gr.Radio, lambda: {"choices": ["Off", "Manual (Alt+Shift+F)", "Automatic (on blur)"]}).info("tidies commas and spaces between tags; Alt+Shift+F works in both modes. The separator follows 'Append space'"),
+        "tac_formatTrailingComma": shared.OptionInfo(False, "Prompt formatter ends each line with a comma"),
         "tac_wildcardCompletionMode": shared.OptionInfo("To next folder level", "How to complete nested wildcard paths", gr.Dropdown, lambda: {"choices": ["To next folder level","To first difference","Always fully"]}).info("e.g. \"hair/colours/light/...\""),
         # Alias settings
         "tac_alias.searchByAlias": shared.OptionInfo(True, "Search by alias"),
