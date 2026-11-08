@@ -103,6 +103,22 @@ var TacPromptTools = (() => {
         return { start: segment.start, end: segment.end };
     }
 
+    // Multi-word queries for the plain words right before the caret, so "long hai" can complete to
+    // long_hair: the last `maxWords` down to 2 words joined with "_", longest first. Only the text
+    // after the last comma, newline or "|" counts, and it must be plain words separated by single
+    // spaces; prompt syntax, wildcards or a trailing space return nothing.
+    function spacedTagQueries(textBeforeCaret, maxWords = 3) {
+        const field = String(textBeforeCaret ?? "").match(/[^,\n|]*$/)[0].trimStart();
+        if (!field || /\s$/.test(field) || /\s\s|\t/.test(field)) return [];
+        if (/[<>()[\]{}:*@$"\\]|__/.test(field)) return [];
+        const words = field.split(" ");
+        const queries = [];
+        for (let n = Math.min(maxWords, words.length); n >= 2; n--) {
+            queries.push(words.slice(-n).join("_").toLowerCase());
+        }
+        return queries;
+    }
+
     // Number lists and single-letter templates (e.g. LoRA block weights "1,0,0,A") are data, not tags.
     function looksLikeData(segments) {
         const parts = segments.map(s => s.text.trim()).filter(Boolean);
@@ -136,5 +152,5 @@ var TacPromptTools = (() => {
         return lines.join("\n");
     }
 
-    return { splitSegments, tagSegments, normalizeTag, segmentAt, findTag, removalRange, formatPrompt };
+    return { splitSegments, tagSegments, normalizeTag, segmentAt, findTag, removalRange, spacedTagQueries, formatPrompt };
 })();

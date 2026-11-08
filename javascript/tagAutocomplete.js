@@ -658,7 +658,13 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
     let editStart = Math.max(cursorPos - tagword.length, 0);
     let editEnd = Math.min(cursorPos + tagword.length, prompt.length);
     let surrounding = prompt.substring(editStart, editEnd);
-    let match = surrounding.match(new RegExp(escapeRegExp(`${tagword}`), "i"));
+    let tagPattern = escapeRegExp(`${tagword}`);
+    let match = surrounding.match(new RegExp(tagPattern, "i"));
+    // A multi-word query such as "long_hai" was typed with spaces ("long hai")
+    if (!match && tagword.includes("_")) {
+        tagPattern = tagPattern.replaceAll("_", "[ _]");
+        match = surrounding.match(new RegExp(tagPattern, "i"));
+    }
     let afterInsertCursorPos = editStart + match.index + sanitizedText.length;
 
     var optionalSeparator = "";
@@ -666,7 +672,7 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
     let noCommaTypes = [ResultType.wildcardFile, ResultType.yamlWildcard, ResultType.umiWildcard].concat(extraNetworkTypes);
     if (!noCommaTypes.includes(tagType)) {
         // Append comma if enabled and not already present
-        let beforeComma = surrounding.match(new RegExp(`${escapeRegExp(tagword)}[,:]`, "i")) !== null;
+        let beforeComma = surrounding.match(new RegExp(`${tagPattern}[,:]`, "i")) !== null;
         if (TAC_CFG.appendComma)
             optionalSeparator = beforeComma ? "" : ",";
         // Add space if enabled
@@ -674,7 +680,7 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
             optionalSeparator += " ";
         // If at end of prompt and enabled, override the normal setting if not already added
         if (!TAC_CFG.appendSpace && TAC_CFG.alwaysSpaceAtEnd)
-            optionalSeparator += surrounding.match(new RegExp(`${escapeRegExp(tagword)}$`, "im")) !== null ? " " : "";
+            optionalSeparator += surrounding.match(new RegExp(`${tagPattern}$`, "im")) !== null ? " " : "";
     } else if (extraNetworkTypes.includes(tagType)) {
         // Use the dedicated separator for extra networks if it's defined, otherwise fall back to space
         optionalSeparator = TAC_CFG.extraNetworksSeparator || " ";
@@ -1293,6 +1299,17 @@ async function ensureTagsLoaded() {
     }
 }
 
+// True when a tag name contains `word` at a word start (the normal search's rule), checked
+// against the prefix index when it is available
+function hasTagMatch(word) {
+    const regex = new RegExp(`(^|[^a-zA-Z])${escapeRegExp(word)}`, "i");
+    const matches = t => (t._lower || t[0].toLowerCase()).search(regex) > -1;
+    if (TAC_CFG.useIndexedSearch && tagIndex.size > 0) {
+        return word.split("_").some(w => (tagIndex.get(w.substring(0, 3)) || []).some(matches));
+    }
+    return allTags.some(matches);
+}
+
 async function autocomplete(textArea, prompt, fixedTag = null) {
     // Lazy-load tags on first interaction so startup doesn't block the main thread.
     // If not loaded yet, show a brief loading indicator and retry automatically.
@@ -1380,6 +1397,17 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
     ) {
         normalTags = true;
         resultCountBeforeNormalTags = results.length;
+
+        // "long hai" also completes to long_hair: when the last few plain words before the caret
+        // match a tag together, search for them as one tag instead of only the last word
+        if (fixedTag === null && !tagword.startsWith("*")) {
+            const caret = textArea.selectionStart;
+            if (!/[^\s,|]/.test(prompt[caret] ?? "")) {
+                const phrase = TacPromptTools.spacedTagQueries(prompt.slice(0, caret))
+                    .find(q => q.endsWith("_" + tagword) && hasTagMatch(q));
+                if (phrase) tagword = phrase;
+            }
+        }
 
         // Create escaped search regex with support for * as a start placeholder
         let searchRegex;
