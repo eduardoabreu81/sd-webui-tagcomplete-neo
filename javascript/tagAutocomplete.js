@@ -162,6 +162,18 @@ const autocompleteCSS = `
 let tagIndex = new Map();
 let tagsLoaded = false;
 
+// Adds the index keys of `text` (lowercase): the 3 characters at every place where the normal
+// search's `(^|[^a-zA-Z])word` can start a match, that is the start of the text and after any
+// character that is not a Latin letter. So "uni" finds "school_uniform", "kan" finds ANIMA's
+// "@kantoku" and "art" finds "style_(artist)", as in the full scan.
+function addTagIndexKeys(text, keys) {
+    for (let i = 0; i + 3 <= text.length; i++) {
+        const prev = i > 0 ? text.charCodeAt(i - 1) : 0;
+        const prevIsLetter = (prev >= 97 && prev <= 122) || (prev >= 65 && prev <= 90);
+        if (!prevIsLetter) keys.add(text.substring(i, i + 3));
+    }
+}
+
 async function buildTagIndex() {
     tagIndex.clear();
     const CHUNK_SIZE = 5000;
@@ -176,20 +188,15 @@ async function buildTagIndex() {
             tag._lower = lower;
             tag._aliasLower = tag[3] ? tag[3].toLowerCase() : null;
 
-            // Index by first 3 chars of EACH word (split by _ or space).
-            // This preserves the original substring behaviour so searching "uni"
-            // still finds "school_uniform" because "uniform" starts with "uni".
-            const words = lower.split(/[_ ]+/);
+            // Index the name, the aliases and their translations, since the search filters
+            // check all of them against the same regex
             const keys = new Set();
-            words.forEach(word => {
-                if (word.length >= 3) {
-                    keys.add(word.substring(0, 3));
-                }
-            });
-            // Also index by the full tag prefix for single-word tags
-            if (lower.length >= 3) {
-                keys.add(lower.substring(0, 3));
-            }
+            addTagIndexKeys(lower, keys);
+            if (tag._aliasLower) addTagIndexKeys(tag._aliasLower, keys);
+            const translated = [tag[0], ...(tag[3] ? tag[3].split(",") : [])]
+                .map(t => translations.get(t))
+                .filter(Boolean);
+            translated.forEach(t => addTagIndexKeys(t.toLowerCase(), keys));
             keys.forEach(key => {
                 if (!tagIndex.has(key)) {
                     tagIndex.set(key, []);
@@ -341,7 +348,8 @@ async function syncOptions() {
     }
 
     // Reload translations if the translation file changed
-    if (!TAC_CFG || newCFG.translation.translationFile !== TAC_CFG.translation.translationFile) {
+    const translationsChanged = !TAC_CFG || newCFG.translation.translationFile !== TAC_CFG.translation.translationFile;
+    if (translationsChanged) {
         translations.clear();
         await loadTranslations(newCFG);
         await loadExtraTags(newCFG);
@@ -355,6 +363,9 @@ async function syncOptions() {
         await loadTags(newCFG);
         await buildTagIndex();
         tagsLoaded = true;
+    } else if (translationsChanged && tagsLoaded && tagIndex.size > 0) {
+        // The index also holds the translations' keys
+        await buildTagIndex();
     }
 
     // Refresh temp files if model sort order changed
@@ -1304,8 +1315,8 @@ async function ensureTagsLoaded() {
 function hasTagMatch(word) {
     const regex = new RegExp(`(^|[^a-zA-Z])${escapeRegExp(word)}`, "i");
     const matches = t => (t._lower || t[0].toLowerCase()).search(regex) > -1;
-    if (TAC_CFG.useIndexedSearch && tagIndex.size > 0) {
-        return word.split("_").some(w => (tagIndex.get(w.substring(0, 3)) || []).some(matches));
+    if (TAC_CFG.useIndexedSearch && tagIndex.size > 0 && word.length >= 3) {
+        return (tagIndex.get(word.toLowerCase().substring(0, 3)) || []).some(matches);
     }
     return allTags.some(matches);
 }
@@ -1411,7 +1422,8 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
 
         // Create escaped search regex with support for * as a start placeholder
         let searchRegex;
-        if (tagword.startsWith("*")) {
+        const matchAnywhere = tagword.startsWith("*");
+        if (matchAnywhere) {
             tagword = tagword.slice(1);
             searchRegex = new RegExp(`${escapeRegExp(tagword)}`, 'i');
         } else {
@@ -1441,27 +1453,12 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
         else
             fil = (x) => baseFilter(x);
 
-        // Use indexed subset for 3+ characters, fallback to full scan otherwise
+        // Use the indexed subset for 3+ characters, the full scan otherwise. Every match starts
+        // where the index has a key, so the tagword's first 3 characters pick the whole subset.
+        // A leading * matches anywhere, which the index doesn't cover.
         let tagsToSearch = allTags;
-        if (TAC_CFG.useIndexedSearch && tagword.length >= 3 && tagIndex.size > 0) {
-            // Gather indexed subsets for every word in the tagword and merge without duplicates
-            const words = tagword.split(/[_\s]+/);
-            const seen = new Set();
-            const merged = [];
-            for (const w of words) {
-                const key = w.substring(0, 3);
-                if (!key) continue;
-                const subset = tagIndex.get(key);
-                if (subset) {
-                    for (const tag of subset) {
-                        if (!seen.has(tag)) {
-                            seen.add(tag);
-                            merged.push(tag);
-                        }
-                    }
-                }
-            }
-            tagsToSearch = merged.length > 0 ? merged : [];
+        if (TAC_CFG.useIndexedSearch && !matchAnywhere && tagword.length >= 3 && tagIndex.size > 0) {
+            tagsToSearch = tagIndex.get(tagword.substring(0, 3)) || [];
         }
 
         let filtered = tagsToSearch.filter(fil);
