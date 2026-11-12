@@ -32,6 +32,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.5.1: Tags that start with a symbol
+
+- **ANIMA artists without typing `@`**: with a tag file whose artists are written `@name`, typing the first letters of the name suggests them again, and your frequent ones (✨) come back to the top. The same goes for any tag word after a symbol, like `(artist)` or `:3` ([#8](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/8))
+
 ### v0.5.0: Tags with spaces
 
 - **Type tags with spaces**: `long hai` now suggests `long_hair`, and picking it replaces both words. Prompts written in plain sentences keep suggesting single tags as before ⭐
@@ -42,6 +46,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 📖 Changelog
+
+### v0.5.1: Tags that start with a symbol
+- The indexed search (`Use indexed search`, on by default) now finds every tag the full scan finds. It only indexed the start of each `_`/space-separated word, so a 3+ letter search missed tags where the word follows another symbol, such as ANIMA's `@artist` names or `style_(artist)`, and the usage sort never saw them. The index now has a key wherever the search can match, including aliases and their translations (#8)
+- A search starting with `*` (match anywhere) no longer uses the index, which can't cover it
 
 ### v0.5.0: Tags with spaces
 - When the last two or three words before the cursor are plain words separated by single spaces and match a tag together (`long hai` → `long_hair`), they are searched and replaced as one tag. Otherwise only the last word is searched, as before. Words inside brackets, weights, extra networks or wildcards are not combined
@@ -180,6 +188,9 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ### v0.5.0: Tags with spaces ✅
 - Multi-word tags typed with spaces ✅
 - Faster usage sorting ✅
+
+### v0.5.1: Tags that start with a symbol ✅
+- Indexed search finds `@artist` and other symbol-prefixed tags ✅
 
 ### v0.6.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
