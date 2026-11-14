@@ -32,6 +32,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.5.2: Clicking a suggestion
+
+- **The suggestion list stays open while you click it**: a click held a bit longer, or dragging the list's scrollbar, no longer closes the list before the tag is added, and after clicking a tag you can keep typing without clicking back into the prompt ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
+
 ### v0.5.1: Tags that start with a symbol
 
 - **ANIMA artists without typing `@`**: with a tag file whose artists are written `@name`, typing the first letters of the name suggests them again, and your frequent ones (✨) come back to the top. The same goes for any tag word after a symbol, like `(artist)` or `:3` ([#8](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/8))
@@ -46,6 +50,9 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 📖 Changelog
+
+### v0.5.2: Clicking a suggestion
+- Pressing the mouse on the suggestion list no longer takes the focus from the prompt. The prompt's focusout closes the list 400 ms later, so a click held longer than that, or a drag of the list's scrollbar, closed it before the mouse was released and the tag was never added. The prompt also stayed unfocused after a normal click (#9)
 
 ### v0.5.1: Tags that start with a symbol
 - The indexed search (`Use indexed search`, on by default) now finds every tag the full scan finds. It only indexed the start of each `_`/space-separated word, so a 3+ letter search missed tags where the word follows another symbol, such as ANIMA's `@artist` names or `style_(artist)`, and the usage sort never saw them. The index now has a key wherever the search can match, including aliases and their translations (#8)
@@ -191,6 +198,9 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ### v0.5.1: Tags that start with a symbol ✅
 - Indexed search finds `@artist` and other symbol-prefixed tags ✅
+
+### v0.5.2: Clicking a suggestion ✅
+- The list stays open while clicking it, and the prompt keeps the focus ✅
 
 ### v0.6.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
