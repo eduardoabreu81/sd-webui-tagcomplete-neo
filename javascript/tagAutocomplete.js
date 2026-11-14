@@ -1754,15 +1754,14 @@ function addAutocompleteToArea(area) {
             if (!hideBlocked)
                 hideResults(area);
         }, 400));
-        // Prompt formatter on leaving the textbox. Clicking a result also blurs the textbox,
-        // and that click must not reformat the prompt before the tag is inserted.
-        let clickingResult = false;
-        resultsDiv.addEventListener('mousedown', () => {
-            clickingResult = true;
-            setTimeout(() => { clickingResult = false; }, 0);
-        });
+        // Pressing the mouse on the results must not take the focus from the textbox (#9). Otherwise the
+        // focusout above hides the list 400 ms later: a click held a bit longer, or a drag of the list's
+        // scrollbar, lost the list and its tag, and the textbox stayed blurred after a click.
+        // The click itself still fires, so clicking a result inserts it as before.
+        resultsDiv.addEventListener('mousedown', (e) => e.preventDefault());
+        // Prompt formatter on leaving the textbox
         area.addEventListener('focusout', () => {
-            if (!clickingResult && TAC_CFG.formatMode === "Automatic (on blur)" && isEnabled())
+            if (TAC_CFG.formatMode === "Automatic (on blur)" && isEnabled())
                 formatPromptArea(area);
         });
         // Add up and down arrow event listener, plus the Alt+Shift+F formatter shortcut
