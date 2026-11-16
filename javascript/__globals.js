@@ -35,6 +35,9 @@ var previousTags = [];
 var tagword = "";
 var originalTagword = "";
 let hideBlocked = false;
+// Bumped by every autocomplete run and by anything that closes or consumes the list. A run that
+// was overtaken while it awaited (parsers, use counts) drops its results instead of showing them (#9)
+let autocompleteRun = 0;
 
 // Tag selection for keyboard navigation
 var selectedTag = null;

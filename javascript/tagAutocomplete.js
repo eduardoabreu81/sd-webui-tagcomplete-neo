@@ -559,6 +559,8 @@ function formatPromptArea(textArea) {
 
 // On click, insert the tag into the prompt textbox with respect to the cursor position
 async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithoutChoice = false) {
+    // A search still running for the word just completed must not reopen the list (#9)
+    autocompleteRun++;
     if (TAC_CFG.selectUsedTag && result.type === ResultType.tag && selectUsedTag(textArea, result.text)) return;
 
     let text = result.text;
@@ -1334,6 +1336,12 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
     // Return if the function is deactivated in the UI
     if (!isEnabled()) return;
 
+    // #9: runs overlap when a search awaits the server (frequency sort asks for use counts on every
+    // run, and the first letter's huge result list is the slowest). A run that finished late used to
+    // show its stale list over the newer one, or hide it, so only the latest run may touch the list.
+    const run = ++autocompleteRun;
+    const overtaken = () => run !== autocompleteRun;
+
     // Guard for empty prompt
     if (prompt.length === 0) {
         hideResults(textArea);
@@ -1394,6 +1402,7 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
 
     // Process all parsers
     let resultCandidates = (await processParsers(textArea, prompt))?.filter(x => x.length > 0);
+    if (overtaken()) return;
     // If one ore more result candidates match, use their results
     if (resultCandidates && resultCandidates.length > 0) {
         // Flatten our candidate(s)
@@ -1528,6 +1537,7 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
         // Request use counts from the DB
         const names = TAC_CFG.frequencyIncludeAlias ? tagNames.concat(aliasNames) : tagNames;
         const counts = await getUseCounts(names, types, isNegative) || [];
+        if (overtaken()) return;
 
         results = sortByUsage(results, counts);
     }
@@ -1546,6 +1556,7 @@ async function autocomplete(textArea, prompt, fixedTag = null) {
 
     // Defer DOM rendering to next frame so input stays responsive
     requestAnimationFrame(() => {
+        if (overtaken()) return;
         addResultsToList(textArea, results, tagword, true);
         showResults(textArea);
     });
@@ -1648,6 +1659,7 @@ function navigateInList(textArea, event) {
             insertTextAtCursor(textArea, results[selectedTag], tagword, withoutChoice);
             break;
         case keys["Close"]:
+            autocompleteRun++; // and keep a search still running from reopening it
             hideResults(textArea);
             break;
         default:
@@ -1720,9 +1732,10 @@ function addAutocompleteToArea(area) {
         const debouncedUpdateRuby = debounce(() => updateRuby(area, area.value), 300);
 
         // Add autocomplete event listener
-        area.addEventListener('input', async (e) => {
+        const onAreaInput = async (e) => {
             // Cancel autocomplete itself if the event has no inputType (e.g. because it was triggered by the updateInput() function)
             if (!e.inputType && !tacSelfTrigger) return;
+            lastSeenValue = area.value;
             // A self trigger (e.g. a wildcard file was just inserted, to show its contents) runs right away, as upstream:
             // insertTextAtCursor records the new prompt's tags right after this event, so a debounced run would find
             // no change and show nothing
@@ -1748,11 +1761,26 @@ function addAutocompleteToArea(area) {
             else
                 await debouncedAutocomplete();
             checkKeywordInsertionUndo(area, e);
+        };
+        // Forge Neo's "Delay before a prompt edit is sent to Gradio" (prompt_debounce) stops every keystroke's
+        // input event at the textarea and sends one copy only once typing pauses, so the list lagged a whole
+        // delay behind and searched words typed long before (#9). Listening in the capture phase on the parent
+        // runs before that, so the list follows every key. The copy sent later carries no new text: skip it.
+        let lastSeenValue = null;
+        area.parentNode.addEventListener('input', (e) => {
+            if (e.target === area && e.isTrusted) onAreaInput(e);
+        }, true);
+        area.addEventListener('input', (e) => {
+            if (e.isTrusted) return; // already handled in the capture phase above
+            if (e.inputType && area.value === lastSeenValue) return; // prompt_debounce's delayed copy
+            onAreaInput(e);
         });
         // Add focusout event listener
         area.addEventListener('focusout', debounce(() => {
-            if (!hideBlocked)
+            if (!hideBlocked) {
+                autocompleteRun++;
                 hideResults(area);
+            }
         }, 400));
         // Pressing the mouse on the results must not take the focus from the textbox (#9). Otherwise the
         // focusout above hides the list 400 ms later: a click held a bit longer, or a drag of the list's
