@@ -323,4 +323,6 @@ Made with ❤️ for the Stable Diffusion community
 
 **[Report Bug](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues)** • **[Request Feature](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues)** • **[☕ Ko-fi](https://ko-fi.com/eduardoabreu81)**
 
+<sub>Also available merged with Prompt All-in-One in <a href="https://github.com/eduardoabreu81/sd-webui-prompt-studio-neo">Prompt Studio Neo</a> · More Forge Neo extensions at <a href="https://eduardoabreu81.github.io/">eduardoabreu81.github.io</a></sub>
+
 </div>
