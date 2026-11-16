@@ -32,6 +32,11 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.5.3: Suggestions that keep up
+
+- **The list follows your typing**: it no longer gets stuck on the tags of the first letter, suggests a word you typed earlier, or disappears halfway through a tag ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
+- **Works with Forge Neo's "Delay before a prompt edit is sent to Gradio"**: the suggestions update with every key even with the delay turned up, so you keep smooth typing and an up-to-date list ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
+
 ### v0.5.2: Clicking a suggestion
 
 - **The suggestion list stays open while you click it**: a click held a bit longer, or dragging the list's scrollbar, no longer closes the list before the tag is added, and after clicking a tag you can keep typing without clicking back into the prompt ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
@@ -50,6 +55,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 📖 Changelog
+
+### v0.5.3: Suggestions that keep up
+- Only the latest search can change the list. With frequency sorting on (the default), each search waits for the server's use counts, so searches overlapped, and the first letter's search, with the most results, often finished last and put its list back over the newer one, or hid it. A search overtaken while it waits now drops its results, and closing the list or picking a tag cancels a search still running (#9)
+- The list keeps up with Forge Neo's "Delay before a prompt edit is sent to Gradio". That setting holds back every keystroke's input event and sends one once typing pauses, so the list lagged a whole delay behind. The extension now reads each key before the delay and ignores the copy sent later; Gradio still gets a single update (#9)
 
 ### v0.5.2: Clicking a suggestion
 - Pressing the mouse on the suggestion list no longer takes the focus from the prompt. The prompt's focusout closes the list 400 ms later, so a click held longer than that, or a drag of the list's scrollbar, closed it before the mouse was released and the tag was never added. The prompt also stayed unfocused after a normal click (#9)
@@ -201,6 +210,10 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ### v0.5.2: Clicking a suggestion ✅
 - The list stays open while clicking it, and the prompt keeps the focus ✅
+
+### v0.5.3: Suggestions that keep up ✅
+- Late searches no longer overwrite or hide the list ✅
+- Suggestions follow every key with Forge Neo's prompt delay ✅
 
 ### v0.6.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
