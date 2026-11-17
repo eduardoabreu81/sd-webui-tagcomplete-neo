@@ -32,6 +32,11 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 
 ## 🆕 What's New
 
+### v0.5.4: Clicking a suggestion while editing a tag
+
+- **A click on a suggestion always inserts it**: editing a tag already in the prompt (for example erasing the end of `hand on own chest` to pick another one) could leave a list you could see but not click ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
+- **Multi-word tags replace every word you typed**: `hand on own ch` now completes to `hand on own cheek`, instead of `hand hand on own cheek`
+
 ### v0.5.3: Suggestions that keep up
 
 - **The list follows your typing**: it no longer gets stuck on the tags of the first letter, suggests a word you typed earlier, or disappears halfway through a tag ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
@@ -55,6 +60,11 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ---
 
 ## 📖 Changelog
+
+### v0.5.4: Clicking a suggestion while editing a tag
+
+- **A click on a suggestion always inserts it**: editing a tag already in the prompt (for example erasing the end of `hand on own chest` to pick another one) could leave a list you could see but not click ([#9](https://github.com/eduardoabreu81/sd-webui-tagcomplete-neo/issues/9))
+- **Multi-word tags replace every word you typed**: `hand on own ch` now completes to `hand on own cheek`, instead of `hand hand on own cheek`
 
 ### v0.5.3: Suggestions that keep up
 - Only the latest search can change the list. With frequency sorting on (the default), each search waits for the server's use counts, so searches overlapped, and the first letter's search, with the most results, often finished last and put its list back over the newer one, or hid it. A search overtaken while it waits now drops its results, and closing the list or picking a tag cancels a search still running (#9)
@@ -214,6 +224,9 @@ Fork of [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-web
 ### v0.5.3: Suggestions that keep up ✅
 - Late searches no longer overwrite or hide the list ✅
 - Suggestions follow every key with Forge Neo's prompt delay ✅
+
+### v0.5.4: Clicking a suggestion while editing a tag ✅
+- A click always inserts, and multi-word tags replace every typed word ✅
 
 ### v0.6.0 — Tag data & relevance (planned)
 - Update Danbooru and e621 tag lists with current data
