@@ -107,7 +107,9 @@ var TacPromptTools = (() => {
     // long_hair: the last `maxWords` down to 2 words joined with "_", longest first. Only the text
     // after the last comma, newline or "|" counts, and it must be plain words separated by single
     // spaces; prompt syntax, wildcards or a trailing space return nothing.
-    function spacedTagQueries(textBeforeCaret, maxWords = 3) {
+    // Six words cover tags such as hand_on_own_chest: with three, "hand on own ch" searched
+    // "on_own_ch", which also matches inside hand_on_own_chest, so choosing it left "hand hand on own chest".
+    function spacedTagQueries(textBeforeCaret, maxWords = 6) {
         const field = String(textBeforeCaret ?? "").match(/[^,\n|]*$/)[0].trimStart();
         if (!field || /\s$/.test(field) || /\s\s|\t/.test(field)) return [];
         if (/[<>()[\]{}:*@$"\\]|__/.test(field)) return [];

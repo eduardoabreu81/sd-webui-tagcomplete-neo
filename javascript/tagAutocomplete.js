@@ -678,6 +678,25 @@ async function insertTextAtCursor(textArea, result, tagword, tabCompletedWithout
         tagPattern = tagPattern.replaceAll("_", "[ _]");
         match = surrounding.match(new RegExp(tagPattern, "i"));
     }
+    // The word the list was built for is no longer around the caret (the prompt changed after the list
+    // was drawn). A click used to throw here and silently do nothing (#9): replace the longest text right
+    // before the caret that starts the chosen tag ("hand on own ch" for hand_on_own_cheek), else the word
+    // typed before the caret, or insert at the caret when there is none.
+    if (!match) {
+        const before = prompt.slice(0, cursorPos);
+        const flat = before.toLowerCase().replaceAll(" ", "_");
+        const tagStart = text.toLowerCase();
+        let typed = before.match(/[^\s,|()[\]{}<>:]*$/)[0];
+        for (let k = Math.min(tagStart.length, flat.length); k > typed.length; k--) {
+            const boundary = cursorPos - k === 0 || /[\s,|()[\]{}<>:]/.test(before[cursorPos - k - 1]);
+            if (boundary && tagStart.startsWith(flat.slice(-k))) { typed = before.slice(-k); break; }
+        }
+        editStart = cursorPos - typed.length;
+        editEnd = cursorPos;
+        surrounding = typed;
+        tagPattern = escapeRegExp(typed);
+        match = Object.assign([typed], { index: 0 }); // shaped like a RegExp match: replace() below uses it as a string
+    }
     let afterInsertCursorPos = editStart + match.index + sanitizedText.length;
 
     var optionalSeparator = "";
